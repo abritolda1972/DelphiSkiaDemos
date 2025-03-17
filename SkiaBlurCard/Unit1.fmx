@@ -1,0 +1,21 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 480
+  ClientWidth = 640
+  Fill.Color = claBlack
+  Fill.Kind = Solid
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object SkPaintBox1: TSkPaintBox
+    Position.X = 72.000000000000000000
+    Position.Y = 48.000000000000000000
+    Size.Width = 489.000000000000000000
+    Size.Height = 361.000000000000000000
+    Size.PlatformDefault = False
+    OnDraw = SkPaintBox1Draw
+  end
+end
