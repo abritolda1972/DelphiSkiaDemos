@@ -8,4 +8,4 @@ Skia Digital Clock Example
 [![Skia_Blur](SkiaDigitalClock/SkiaDigitalClock.png)]
 
 Skia Flame Example
-[![Watch the video](SkiaFire/SkiaFlame.png)](SkiaFire/SkiaFlame.mp4)
+[![Watch the video](https://youtu.be/NlFqyiOHV7s/0.jpg)](https://youtu.be/NlFqyiOHV7s)
