@@ -1,0 +1,66 @@
+object Form1: TForm1
+  Left = 359
+  Top = 119
+  Caption = 'Form1'
+  ClientHeight = 470
+  ClientWidth = 324
+  Position = Designed
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  Left = 359
+  Top = 119
+  DesignerMasterStyle = 0
+  object Rectangle1: TRectangle
+    Fill.Color = claWhite
+    Position.X = 8.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 305.000000000000000000
+    Size.Height = 209.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Kind = None
+    object SkAnimatedPaintBox1: TSkAnimatedPaintBox
+      Position.X = 16.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 281.000000000000000000
+      Size.Height = 193.000000000000000000
+      Size.PlatformDefault = False
+      Animation.Duration = 3.000000000000000000
+      Animation.Speed = 0.500000000000000000
+      OnAnimationDraw = SkAnimatedPaintBox1AnimationDraw
+    end
+    object ShadowEffect1: TShadowEffect
+      Distance = 3.000000000000000000
+      Direction = 45.000000000000000000
+      Softness = 0.300000011920929000
+      Opacity = 0.300000011920929000
+      ShadowColor = claBlack
+    end
+  end
+  object Rectangle2: TRectangle
+    Fill.Color = claWhite
+    Position.X = 8.000000000000000000
+    Position.Y = 233.000000000000000000
+    Size.Width = 305.000000000000000000
+    Size.Height = 209.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Kind = None
+    object SkAnimatedPaintBox2: TSkAnimatedPaintBox
+      Position.X = 16.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 281.000000000000000000
+      Size.Height = 193.000000000000000000
+      Size.PlatformDefault = False
+      Animation.Duration = 2.000000000000000000
+      OnAnimationDraw = SkAnimatedPaintBox2AnimationDraw
+    end
+    object ShadowEffect2: TShadowEffect
+      Distance = 3.000000000000000000
+      Direction = 45.000000000000000000
+      Softness = 0.300000011920929000
+      Opacity = 0.300000011920929000
+      ShadowColor = claBlack
+    end
+  end
+end

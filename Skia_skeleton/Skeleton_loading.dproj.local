@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899-12-30 00:00:00.000.520,C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Skia_skeleton\Unit1.pas=C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.189,=C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.751,C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Skia_skeleton\Skeleton_loading.dproj=C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Skia_skeleton\Project1.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.558,C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Skia_skeleton\Project1.dproj=C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.520,C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Skia_skeleton\Unit1.fmx=C:\Users\Abrito\Documents\Embarcadero\Studio\Projects\Unit1.fmx</Transaction>
+  </Transactions>
+	<ActiveMobileDevice>
+		<NoProfile Android64=""/>
+	</ActiveMobileDevice>
+</BorlandProject>

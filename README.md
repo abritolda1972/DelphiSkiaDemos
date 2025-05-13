@@ -9,3 +9,6 @@ Skia Digital Clock Example
 
 Skia Flame Example
 [![Watch the video](SkiaFire/SkiaFlame.png)](https://youtu.be/NlFqyiOHV7s)
+
+Skia Skeleton Loading Example
+[![Skia_Blur](Skia_skeleton/skeleton_loading.png)]
