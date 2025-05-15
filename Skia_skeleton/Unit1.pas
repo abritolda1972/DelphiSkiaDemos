@@ -22,11 +22,17 @@ type
     Rectangle2: TRectangle;
     SkAnimatedPaintBox2: TSkAnimatedPaintBox;
     ShadowEffect2: TShadowEffect;
+    Rectangle3: TRectangle;
+    SkAnimatedPaintBox3: TSkAnimatedPaintBox;
+    ShadowEffect3: TShadowEffect;
     procedure FormCreate(Sender: TObject);
     procedure SkAnimatedPaintBox1AnimationDraw(ASender: TObject;
       const ACanvas: ISkCanvas; const ADest: TRectF; const AProgress: Double;
       const AOpacity: Single);
     procedure SkAnimatedPaintBox2AnimationDraw(ASender: TObject;
+      const ACanvas: ISkCanvas; const ADest: TRectF; const AProgress: Double;
+      const AOpacity: Single);
+    procedure SkAnimatedPaintBox3AnimationDraw(ASender: TObject;
       const ACanvas: ISkCanvas; const ADest: TRectF; const AProgress: Double;
       const AOpacity: Single);
   private
@@ -238,5 +244,23 @@ begin
 end;
 
 
+
+procedure TForm1.SkAnimatedPaintBox3AnimationDraw(ASender: TObject;
+  const ACanvas: ISkCanvas; const ADest: TRectF; const AProgress: Double;
+  const AOpacity: Single);
+var
+  LPaint: ISkPaint;
+begin
+  LPaint := TSkPaint.Create;
+  LPaint.Color := TAlphaColorF.Create(224,224,224,
+                   (Sin(AProgress * Pi *1) + 1) / 9 + 0.005).ToAlphaColor;
+
+  for var Element in FSkeletonElements do
+    case Element.Kind of
+      TSkeletonElementKind.Rectangle: ACanvas.DrawRoundRect(Element.Bounds, 4, 4, LPaint);
+      TSkeletonElementKind.Circle:    ACanvas.DrawOval(Element.Bounds, LPaint);
+    end;
+
+end;
 
 end.

@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 359
   Top = 119
   Caption = 'Form1'
-  ClientHeight = 470
+  ClientHeight = 705
   ClientWidth = 324
   Position = Designed
   FormFactor.Width = 320
@@ -56,6 +56,31 @@ object Form1: TForm1
       OnAnimationDraw = SkAnimatedPaintBox2AnimationDraw
     end
     object ShadowEffect2: TShadowEffect
+      Distance = 3.000000000000000000
+      Direction = 45.000000000000000000
+      Softness = 0.300000011920929000
+      Opacity = 0.300000011920929000
+      ShadowColor = claBlack
+    end
+  end
+  object Rectangle3: TRectangle
+    Fill.Color = claWhite
+    Position.X = 8.000000000000000000
+    Position.Y = 458.000000000000000000
+    Size.Width = 305.000000000000000000
+    Size.Height = 209.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Kind = None
+    object SkAnimatedPaintBox3: TSkAnimatedPaintBox
+      Position.X = 16.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 281.000000000000000000
+      Size.Height = 193.000000000000000000
+      Size.PlatformDefault = False
+      Animation.Duration = 2.000000000000000000
+      OnAnimationDraw = SkAnimatedPaintBox3AnimationDraw
+    end
+    object ShadowEffect3: TShadowEffect
       Distance = 3.000000000000000000
       Direction = 45.000000000000000000
       Softness = 0.300000011920929000
