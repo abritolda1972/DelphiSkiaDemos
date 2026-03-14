@@ -1,0 +1,26 @@
+object FormNodeEditor: TFormNodeEditor
+  Left = 0
+  Top = 0
+  Caption = 'Node Editor '#226#8364#8221' Plugin Edition v3'
+  ClientHeight = 620
+  ClientWidth = 1100
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  DesignerMasterStyle = 0
+  object PaintBox: TSkPaintBox
+    Align = Client
+    HitTest = True
+    Size.Width = 1100.000000000000000000
+    Size.Height = 620.000000000000000000
+    Size.PlatformDefault = False
+    OnMouseDown = PaintBoxMouseDown
+    OnMouseMove = PaintBoxMouseMove
+    OnMouseUp = PaintBoxMouseUp
+    OnMouseWheel = PaintBoxMouseWheel
+    OnDraw = PaintBoxDraw
+  end
+end

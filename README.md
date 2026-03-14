@@ -1,6 +1,10 @@
 # DelphiSkiaDemos
  Some examples created in delphi with Skia4Delphi
 
+[![Skia_Blur](SkiaNodeEditor/skianodes.png)]
+
+Skia node editor like n8n
+
 [![Skia_Blur](SkiaBlurCard/Skia_BlurScreen_Shot.png)]
 
 Skia Digital Clock Example
