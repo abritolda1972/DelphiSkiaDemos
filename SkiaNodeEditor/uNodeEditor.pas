@@ -1,14 +1,30 @@
 ﻿// =============================================================================
-//  uNodeEditor.pas  —  v3.0  (Plugin Edition)
+//  uNodeEditor.pas  —  v4.0  (Plugin Edition)
 //  Editor de Nós estilo n8n / Node-RED — com sistema de plugins
 //
 //  © 2024-2026 Alberto Brito. Todos os direitos reservados.
 //
 //  Contacto: [abritolda@gmail.com]
 // =============================================================================
-//  uNodeEditor.pas  —  v3.0  (Plugin Edition)
-//  Editor de Nós estilo n8n / Node-RED — com sistema de plugins
 //
+//  NOVIDADES v4.0:
+//    ✦ Toolbar FMX nativa (TRectangle + TLabel) com tema escuro consistente
+//    ✦ Botões de zoom (−, %, +) na toolbar — sem sobreposição com o log
+//    ✦ Botão "Recentrar" — ajusta zoom e pan para mostrar todos os nós
+//    ✦ Botão 100% — repõe zoom=1 e centra os nós no canvas
+//    ✦ Botão "Novo", "Abrir", "Guardar" — gestão de projectos
+//    ✦ Serialização JSON para ficheiro .nep (Node Editor Project)
+//    ✦ Atalhos: Ctrl+S (guardar), Ctrl+Shift+S (guardar como),
+//               Ctrl+O (abrir), Ctrl+N (novo)
+//    ✦ Ícones SVG vectoriais por nó (Feather Icons, branco monocromático)
+//    ✦ Tipografia melhorada: Segoe UI / SF Pro com SubpixelAntiAlias
+//               e LinearMetrics — texto nítido a qualquer zoom
+//    ✦ Constantes tipográficas centralizadas (FONT_*, COL_TEXT_*)
+//    ✦ Constantes de espessura centralizadas (STROKE_W, WIRE_W e derivados)
+//    ✦ Canvas sem limites — nós podem ser arrastados livremente após pan/zoom
+//    ✦ ClipChildren no PaintBox — nós não ultrapassam a toolbar durante zoom
+//    ✦ FitToNodes com zoom fixo opcional (usado pelo botão 100%)
+
 //  NOVIDADES v3.0:
 //    ✦ Sistema de plugins: crie os seus próprios nós sem tocar neste ficheiro
 //    ✦ Paleta organizada por categorias (colapsáveis)
@@ -25,10 +41,13 @@
 //    Selecionar ligação  : clicar no cabo (fica amarelo)
 //    Delete              : apaga nó ou ligação seleccionados
 //    Ctrl+Enter          : executa o fluxo a partir de nós Trigger
+//    Ctrl+S / Ctrl+O / N : guardar / abrir / novo projecto
 //    Paleta              : clique num item para inserir no canvas
-//    Multiseleção        : crie uma janela em volta dos nodes que quer arrastar
-//    zoom                : roda do rato faz zoom in e zoom out
+//    Multiseleção        : rubber-band — arraste em área vazia para seleccionar
+//    Zoom                : roda do rato; botões −/+/100%/Recentrar na toolbar
+//    Pan                 : botão do meio do rato + arrastar
 // =============================================================================
+
 
 unit uNodeEditor;
 
@@ -46,10 +65,12 @@ uses
   FMX.Forms,
   FMX.Graphics,
   FMX.StdCtrls,
+  FMX.Layouts,
+  FMX.Objects,
   FMX.Dialogs,
   Skia,
   FMX.Skia,
-  uNodePlugin;
+  uNodePlugin, FMX.Controls.Presentation;
 
 // =============================================================================
 //  Modos de interação
@@ -132,7 +153,18 @@ type
 //  Form principal
 // =============================================================================
   TFormNodeEditor = class(TForm)
-    PaintBox: TSkPaintBox;
+    PaintBox    : TSkPaintBox;
+    ToolBar     : TRectangle;
+    BtnZoomOut  : TRectangle;
+    BtnZoomReset: TRectangle;
+    BtnZoomIn   : TRectangle;
+    BtnRun      : TRectangle;
+    BtnFit      : TRectangle;
+    BtnNew      : TRectangle;
+    BtnSave     : TRectangle;
+    BtnLoad     : TRectangle;
+    LblZoom     : TLabel;
+    LblProjectName: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word;
@@ -148,11 +180,21 @@ type
     procedure PaintBoxDblClick (Sender: TObject);
     procedure PaintBoxMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; var Handled: Boolean);
+    // Toolbar handlers
+    procedure BtnZoomOutClick  (Sender: TObject);
+    procedure BtnZoomResetClick(Sender: TObject);
+    procedure BtnZoomInClick   (Sender: TObject);
+    procedure BtnRunClick      (Sender: TObject);
+    procedure BtnFitClick      (Sender: TObject);
+    procedure BtnNewClick      (Sender: TObject);
+    procedure BtnSaveClick     (Sender: TObject);
+    procedure BtnLoadClick     (Sender: TObject);
   private
     // --- Dados ---
     FNodes      : TObjectList<TNode>;
     FConnections: TObjectList<TConnection>;
     FNextID     : Integer;
+    FProjectFile: string;   // Caminho do ficheiro actual ('' = novo projecto)
 
     // --- Interação ---
     FMode       : TEditorMode;
@@ -236,14 +278,21 @@ type
     // --- Zoom & Pan ---
     procedure ZoomAt(ADelta: Integer; AScreenX, AScreenY: Single);
     procedure ResetZoom;
+    procedure FitToNodes(AFixedZoom: Single = 0);
+    procedure UpdateZoomLabel;
     function  CanvasToScreen(const P: TPointF): TPointF;
     function  ScreenToCanvas(const P: TPointF): TPointF;
     function  ZoomRect: TRectF;
-    procedure DrawZoomControls(const C: ISkCanvas; const R: TRectF);
 
     // --- Execução de fluxo ---
     procedure RunFlow;
     function  ExecuteFrom(ANode: TNode; const AInput: TNodeData): TNodeData;
+
+    // --- Projecto: Guardar / Carregar ---
+    procedure NewProject;
+    procedure SaveProject(const APath: string);
+    procedure LoadProject(const APath: string);
+    procedure UpdateTitleBar;
 
     // --- Bézier ---
     procedure BezierCtrl(const P0, P3: TPointF; out P1, P2: TPointF);
@@ -259,11 +308,10 @@ type
     procedure DrawPalette     (const C: ISkCanvas; const R: TRectF);
     procedure DrawPropPanel   (const C: ISkCanvas; const R: TRectF);
     procedure DrawLogPanel    (const C: ISkCanvas; const R: TRectF);
-    procedure DrawRunButton   (const C: ISkCanvas; const R: TRectF);
     procedure DrawRubberBand  (const C: ISkCanvas);
 
   public
-    
+
   end;
 
 var
@@ -275,7 +323,9 @@ implementation
 
 uses
   uBuiltinNodes,      // Regista os nós integrados
-  uExamplePlugins;    // Regista os plugins de exemplo
+  uExamplePlugins,    // Regista os plugins de exemplo
+  System.JSON,
+  System.IOUtils;
   // Adicione aqui as suas próprias units de plugin:
   // uMeusPlugins;
 
@@ -289,12 +339,39 @@ const
   HDR_H       = 30;
   NODE_W      = 190;
   NODE_H      = 82;
-  PAL_W       = 170;
-  PAL_ITEM_H  = 46;
+  PAL_W       = 200;   // Paleta mais larga para texto legível
+  PAL_ITEM_H  = 48;
   PAL_PAD     = 8;
   CAT_HDR_H   = 28;
   WIRE_THRESH = 8;
   LOG_H_DEF   = 140;
+  STROKE_W    = 1.0;
+  WIRE_W      = 2.5;
+  WIRE_GLOW     = WIRE_W * 2.4;
+  WIRE_GLOW_SEL = WIRE_W * 4.8;
+  WIRE_GHOST    = WIRE_W * 3.2;
+
+  // Tamanhos de fonte — altere aqui para ajustar toda a tipografia do editor
+  FONT_NODE_TITLE  = 11.0;   // Título do nó no cabeçalho
+  FONT_NODE_PROP   = 10.0;   // Propriedades visíveis no corpo do nó
+  FONT_NODE_STATUS = 10.0;   // Status de execução (✓ OK / ❌ erro)
+  FONT_PAL_HEADER  = 10.0;   // Cabeçalho "COMPONENTES"
+  FONT_PAL_CAT     = 10.5;   // Nome da categoria (Trigger, HTTP…)
+  FONT_PAL_TITLE   = 11.0;   // Nome do plugin na paleta
+  FONT_PAL_DESC    = 10.0;   // Descrição curta do plugin
+  FONT_PROP_TITLE  = 14.0;   // Título grande do nó no painel de props
+  FONT_PROP_LABEL  = 10.5;   // Label de cada campo
+  FONT_PROP_VALUE  = 11.0;   // Valor de cada campo
+  FONT_PROP_HINT   = 10.0;   // Texto de ajuda / dica
+  FONT_LOG         = 10.0;   // Linhas do log de execução
+  FONT_ICON_CLOSE  = 14.0;   // Ícone × do botão fechar painel
+  FONT_ICON_EDIT   = 12.0;   // Ícone ✎ de edição de campo
+
+  // Opacidades de texto — $FF = totalmente opaco
+  COL_TEXT_PRIMARY   = $FFFFFFFF;   // Texto principal — branco puro
+  COL_TEXT_SECONDARY = $CCAABBCC;   // Labels / subtítulos — azul claro
+  COL_TEXT_MUTED     = $99AABBCC;   // Texto de dica / secundário
+  COL_TEXT_DISABLED  = $66AABBCC;   // Texto desactivado / label de secção
 
 // Paleta de cores para categorias
 const
@@ -315,6 +392,42 @@ const
 function ColIf(ACond: Boolean; ATrue, AFalse: TAlphaColor): TAlphaColor; inline;
 begin
   if ACond then Result := ATrue else Result := AFalse;
+end;
+
+// =============================================================================
+//  Helper — cria TSkFont com antialiasing subpixel sempre activo
+//  Usa 'Segoe UI' no Windows, 'SF Pro' no macOS, fallback para a fonte padrão.
+// =============================================================================
+var
+  GUITypeface: ISkTypeface = nil;
+
+function UITypeface: ISkTypeface;
+begin
+  if not Assigned(GUITypeface) then
+  begin
+    {$IFDEF MSWINDOWS}
+    GUITypeface := TSkTypeface.MakeFromName('Segoe UI', TSkFontStyle.Normal);
+    {$ELSEIF DEFINED(MACOS)}
+    GUITypeface := TSkTypeface.MakeFromName('SF Pro Display', TSkFontStyle.Normal);
+    {$ELSE}
+    GUITypeface := TSkTypeface.MakeFromName('Roboto', TSkFontStyle.Normal);
+    {$ENDIF}
+    if not Assigned(GUITypeface) then
+      GUITypeface := TSkTypeface.MakeDefault;
+  end;
+  Result := GUITypeface;
+end;
+
+function MakeFont(ASize: Single; ABold: Boolean = False): ISkFont;
+begin
+  if ABold then
+    Result := TSkFont.Create(
+      TSkTypeface.MakeFromName(UITypeface.FamilyName, TSkFontStyle.Bold), ASize)
+  else
+    Result := TSkFont.Create(UITypeface, ASize);
+  Result.Edging        := TSkFontEdging.SubpixelAntiAlias;
+  Result.Subpixel      := True;
+  Result.LinearMetrics := True;
 end;
 
 // =============================================================================
@@ -417,6 +530,7 @@ begin
   FConnections   := TObjectList<TConnection>.Create(True);
   FLogLines      := TStringList.Create;
   FNextID        := 100;
+  FProjectFile   := '';
   FMode          := emIdle;
   FDragNode      := nil;
   FWireSrc       := nil;
@@ -474,6 +588,11 @@ begin
 
   FLogLines.Add('▶  Editor iniciado — ' + FormatDateTime('hh:nn:ss', Now));
   FLogLines.Add('   ' + IntToStr(NodePluginRegistry.Count) + ' plugins registados.');
+
+  UpdateTitleBar;
+
+  // Centra os nós iniciais no canvas ao arrancar
+  TThread.ForceQueue(nil, procedure begin FitToNodes; end);
 end;
 
 procedure TFormNodeEditor.FormDestroy(Sender: TObject);
@@ -825,6 +944,7 @@ begin
   FPanX := AScreenX - (AScreenX - FPanX) * (NewZoom / OldZoom);
   FPanY := AScreenY - (AScreenY - FPanY) * (NewZoom / OldZoom);
   FZoom := NewZoom;
+  UpdateZoomLabel;
   PaintBox.Redraw;
 end;
 
@@ -833,20 +953,379 @@ begin
   FZoom := 1.0;
   FPanX := 0;
   FPanY := 0;
+  UpdateZoomLabel;
   PaintBox.Redraw;
 end;
 
-// Scroll do rato → zoom
-//procedure TFormNodeEditor.PaintBoxMouseWheel(Sender: TObject;
-//  Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
-//begin
-//     if InPalette(0) then Exit;  // não faz nada se cursor na paleta
-//  ZoomAt(WheelDelta, FWirePos.X, FWirePos.Y);
-//  Handled := True;
-//end;
+// Calcula o bounding box de todos os nós e ajusta zoom+pan
+// para que fiquem todos visíveis com margem, centrados no canvas.
+// Se AFixedZoom > 0, usa esse zoom em vez de calcular o melhor.
+procedure TFormNodeEditor.FitToNodes(AFixedZoom: Single = 0);
+const
+  MARGIN = 60;
+var
+  I          : Integer;
+  BB         : TRectF;
+  N          : TNode;
+  CanvasW    : Single;
+  CanvasH    : Single;
+  ScaleX     : Single;
+  ScaleY     : Single;
+  NewZoom    : Single;
+begin
+  if FNodes.Count = 0 then
+  begin
+    FZoom := AFixedZoom;
+    if FZoom <= 0 then FZoom := 1.0;
+    FPanX := 0; FPanY := 0;
+    UpdateZoomLabel;
+    PaintBox.Redraw;
+    Exit;
+  end;
+
+  // Bounding box de todos os nós (coordenadas do mundo)
+  BB := FNodes[0].Bounds;
+  for I := 1 to FNodes.Count - 1 do
+  begin
+    N := FNodes[I];
+    if N.Bounds.Left   < BB.Left   then BB.Left   := N.Bounds.Left;
+    if N.Bounds.Top    < BB.Top    then BB.Top     := N.Bounds.Top;
+    if N.Bounds.Right  > BB.Right  then BB.Right   := N.Bounds.Right;
+    if N.Bounds.Bottom > BB.Bottom then BB.Bottom  := N.Bounds.Bottom;
+  end;
+
+  // Área visível do canvas (sem a paleta)
+  CanvasW := PaintBox.Width  - FPaletteW;
+  CanvasH := PaintBox.Height;
+
+  if AFixedZoom > 0 then
+    NewZoom := AFixedZoom
+  else
+  begin
+    // Zoom para caber com margem
+    ScaleX  := (CanvasW - MARGIN * 2) / Max(BB.Width,  1);
+    ScaleY  := (CanvasH - MARGIN * 2) / Max(BB.Height, 1);
+    NewZoom := Min(ScaleX, ScaleY);
+    NewZoom := Max(0.2, Min(NewZoom, 4.0));
+  end;
+
+  // Pan para centrar
+  FZoom := NewZoom;
+  FPanX := (CanvasW - BB.Width  * FZoom) / 2 - BB.Left  * FZoom;
+  FPanY := (CanvasH - BB.Height * FZoom) / 2 - BB.Top   * FZoom;
+
+  UpdateZoomLabel;
+  PaintBox.Redraw;
+end;
+
+// Actualiza o label de zoom na toolbar
+procedure TFormNodeEditor.UpdateZoomLabel;
+var S: string;
+begin
+  S := IntToStr(Round(FZoom * 100)) + '%';
+  LblZoom.Text := S;
+end;
+
+// --- Handlers dos botões da toolbar ---
+procedure TFormNodeEditor.BtnZoomOutClick(Sender: TObject);
+begin
+  ZoomAt(-1, PaintBox.Width / 2, PaintBox.Height / 2);
+end;
+
+procedure TFormNodeEditor.BtnZoomResetClick(Sender: TObject);
+begin
+  FitToNodes(1.0);
+end;
+
+procedure TFormNodeEditor.BtnZoomInClick(Sender: TObject);
+begin
+  ZoomAt(1, PaintBox.Width / 2, PaintBox.Height / 2);
+end;
+
+procedure TFormNodeEditor.BtnRunClick(Sender: TObject);
+begin
+  RunFlow;
+end;
+
+procedure TFormNodeEditor.BtnFitClick(Sender: TObject);
+begin
+  FitToNodes;
+end;
+
 
 // =============================================================================
-Procedure TFormNodeEditor.RunFlow;
+//  Projecto — UpdateTitleBar
+// =============================================================================
+procedure TFormNodeEditor.UpdateTitleBar;
+var Name: string;
+begin
+  if FProjectFile = '' then
+    Name := 'Novo Projecto'
+  else
+    Name := TPath.GetFileNameWithoutExtension(FProjectFile);
+  Caption := 'Node Editor — ' + Name;
+  if Assigned(LblProjectName) then
+    LblProjectName.Text := Name;
+end;
+
+// =============================================================================
+//  Projecto — NewProject
+// =============================================================================
+procedure TFormNodeEditor.NewProject;
+begin
+  ClosePropPanel;
+  FNodes.Clear;
+  FConnections.Clear;
+  FLogLines.Clear;
+  FNextID      := 100;
+  FProjectFile := '';
+  FZoom        := 1.0;
+  FPanX        := 0;
+  FPanY        := 0;
+  FLogLines.Add('▶  Novo projecto — ' + FormatDateTime('hh:nn:ss', Now));
+  UpdateTitleBar;
+  UpdateZoomLabel;
+  PaintBox.Redraw;
+end;
+
+// =============================================================================
+//  Projecto — SaveProject
+// =============================================================================
+procedure TFormNodeEditor.SaveProject(const APath: string);
+var
+  Root, JMeta, JView : TJSONObject;
+  JNodes, JConns     : TJSONArray;
+  JNode, JConn       : TJSONObject;
+  JProps             : TJSONObject;
+  N                  : TNode;
+  Conn               : TConnection;
+  I                  : Integer;
+  JSON               : string;
+begin
+  Root  := TJSONObject.Create;
+  try
+    // Metadados
+    JMeta := TJSONObject.Create;
+    JMeta.AddPair('version',  '1.0');
+    JMeta.AddPair('saved',    FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
+    JMeta.AddPair('generator','NodeEditor v3');
+    Root.AddPair('meta', JMeta);
+
+    // Vista (zoom + pan)
+    JView := TJSONObject.Create;
+    JView.AddPair('zoom', TJSONNumber.Create(FZoom));
+    JView.AddPair('panX', TJSONNumber.Create(FPanX));
+    JView.AddPair('panY', TJSONNumber.Create(FPanY));
+    Root.AddPair('view', JView);
+
+    // Nós
+    JNodes := TJSONArray.Create;
+    for I := 0 to FNodes.Count - 1 do
+    begin
+      N     := FNodes[I];
+      JNode := TJSONObject.Create;
+      JNode.AddPair('id',      TJSONNumber.Create(N.ID));
+      JNode.AddPair('plugin',  N.Plugin.GetTitle);
+      JNode.AddPair('x',       TJSONNumber.Create(N.Bounds.Left));
+      JNode.AddPair('y',       TJSONNumber.Create(N.Bounds.Top));
+      // Propriedades configuradas
+      JProps := TJSONObject.Create;
+      for var P := 0 to N.Plugin.Props.Count - 1 do
+        JProps.AddPair(N.Plugin.Props.Names[P],
+                       N.Plugin.Props.ValueFromIndex[P]);
+      JNode.AddPair('props', JProps);
+      JNodes.Add(JNode);
+    end;
+    Root.AddPair('nodes', JNodes);
+
+    // Ligações
+    JConns := TJSONArray.Create;
+    for I := 0 to FConnections.Count - 1 do
+    begin
+      Conn  := FConnections[I];
+      JConn := TJSONObject.Create;
+      JConn.AddPair('id',     TJSONNumber.Create(Conn.ID));
+      JConn.AddPair('source', TJSONNumber.Create(Conn.SourceID));
+      JConn.AddPair('target', TJSONNumber.Create(Conn.TargetID));
+      JConns.Add(JConn);
+    end;
+    Root.AddPair('connections', JConns);
+
+    JSON := Root.Format(2);
+  finally
+    Root.Free;
+  end;
+
+  TFile.WriteAllText(APath, JSON, TEncoding.UTF8);
+  FProjectFile := APath;
+  UpdateTitleBar;
+  FLogLines.Add('💾  Guardado: ' + TPath.GetFileName(APath));
+  PaintBox.Redraw;
+end;
+
+// =============================================================================
+//  Projecto — LoadProject
+// =============================================================================
+procedure TFormNodeEditor.LoadProject(const APath: string);
+var
+  JSON               : string;
+  Root               : TJSONObject;
+  JView              : TJSONObject;
+  JNodes, JConns     : TJSONArray;
+  JNode, JConn       : TJSONObject;
+  JProps             : TJSONObject;
+  JPair              : TJSONPair;
+  PlugTitle          : string;
+  PC                 : TNodePluginClass;
+  N                  : TNode;
+  NID, SrcID, TgtID  : Integer;
+  NX, NY             : Single;
+  I, J               : Integer;
+  MaxID              : Integer;
+begin
+  if not TFile.Exists(APath) then
+  begin
+    FLogLines.Add('❌  Ficheiro não encontrado: ' + APath);
+    Exit;
+  end;
+
+  JSON := TFile.ReadAllText(APath, TEncoding.UTF8);
+  Root := TJSONObject.ParseJSONValue(JSON) as TJSONObject;
+  if Root = nil then
+  begin
+    FLogLines.Add('❌  Ficheiro inválido (JSON mal formado)');
+    Exit;
+  end;
+
+  try
+    ClosePropPanel;
+    FNodes.Clear;
+    FConnections.Clear;
+    MaxID := 100;
+
+    // Vista
+    JView := Root.GetValue<TJSONObject>('view', nil);
+    if Assigned(JView) then
+    begin
+      FZoom := JView.GetValue<TJSONNumber>('zoom', TJSONNumber.Create(1)).AsDouble;
+      FPanX := JView.GetValue<TJSONNumber>('panX', TJSONNumber.Create(0)).AsDouble;
+      FPanY := JView.GetValue<TJSONNumber>('panY', TJSONNumber.Create(0)).AsDouble;
+    end;
+
+    // Nós
+    JNodes := Root.GetValue<TJSONArray>('nodes', nil);
+    if Assigned(JNodes) then
+      for I := 0 to JNodes.Count - 1 do
+      begin
+        JNode     := JNodes.Items[I] as TJSONObject;
+        NID       := JNode.GetValue<TJSONNumber>('id', TJSONNumber.Create(0)).AsInt;
+        PlugTitle := JNode.GetValue<TJSONString>('plugin', TJSONString.Create('')).Value;
+        NX        := JNode.GetValue<TJSONNumber>('x', TJSONNumber.Create(0)).AsDouble;
+        NY        := JNode.GetValue<TJSONNumber>('y', TJSONNumber.Create(0)).AsDouble;
+
+        // Encontra a classe do plugin pelo título
+        PC := nil;
+        for J := 0 to NodePluginRegistry.Count - 1 do
+          if NodePluginRegistry.TitleOf(J) = PlugTitle then
+          begin
+            PC := NodePluginRegistry.Classes[J];
+            Break;
+          end;
+
+        if PC = nil then
+        begin
+          FLogLines.Add('⚠  Plugin não encontrado: ' + PlugTitle + ' — nó ignorado');
+          Continue;
+        end;
+
+        N := TNode.Create(NID, NX, NY, PC);
+
+        // Restaura propriedades
+        JProps := JNode.GetValue<TJSONObject>('props', nil);
+        if Assigned(JProps) then
+          for JPair in JProps do
+            N.Plugin.Props.Values[JPair.JsonString.Value] :=
+              (JPair.JsonValue as TJSONString).Value;
+
+        FNodes.Add(N);
+        if NID > MaxID then MaxID := NID;
+      end;
+
+    // Ligações
+    JConns := Root.GetValue<TJSONArray>('connections', nil);
+    if Assigned(JConns) then
+      for I := 0 to JConns.Count - 1 do
+      begin
+        JConn := JConns.Items[I] as TJSONObject;
+        NID   := JConn.GetValue<TJSONNumber>('id',     TJSONNumber.Create(0)).AsInt;
+        SrcID := JConn.GetValue<TJSONNumber>('source', TJSONNumber.Create(0)).AsInt;
+        TgtID := JConn.GetValue<TJSONNumber>('target', TJSONNumber.Create(0)).AsInt;
+        FConnections.Add(TConnection.Create(NID, SrcID, TgtID));
+        if NID > MaxID then MaxID := NID;
+      end;
+
+    FNextID      := MaxID + 1;
+    FProjectFile := APath;
+    UpdateTitleBar;
+    UpdateZoomLabel;
+    FLogLines.Add('📂  Carregado: ' + TPath.GetFileName(APath) +
+      ' (' + IntToStr(FNodes.Count) + ' nós, ' +
+      IntToStr(FConnections.Count) + ' ligações)');
+    FitToNodes;
+  finally
+    Root.Free;
+  end;
+end;
+
+// --- Handlers dos botões New / Save / Load ---
+procedure TFormNodeEditor.BtnNewClick(Sender: TObject);
+begin
+  // Confirmação simples via log — pode ser substituída por TDialogService
+  NewProject;
+end;
+
+procedure TFormNodeEditor.BtnSaveClick(Sender: TObject);
+var
+  SaveDlg: TSaveDialog;
+begin
+  if FProjectFile <> '' then
+  begin
+    SaveProject(FProjectFile);
+    Exit;
+  end;
+  SaveDlg := TSaveDialog.Create(nil);
+  try
+    SaveDlg.Title      := 'Guardar Projecto';
+    SaveDlg.Filter     := 'Node Editor Project (*.nep)|*.nep|JSON (*.json)|*.json';
+    SaveDlg.DefaultExt := 'nep';
+    if FProjectFile <> '' then
+      SaveDlg.FileName := FProjectFile;
+    if SaveDlg.Execute then
+      SaveProject(SaveDlg.FileName);
+  finally
+    SaveDlg.Free;
+  end;
+end;
+
+procedure TFormNodeEditor.BtnLoadClick(Sender: TObject);
+var
+  OpenDlg: TOpenDialog;
+begin
+  OpenDlg := TOpenDialog.Create(nil);
+  try
+    OpenDlg.Title  := 'Abrir Projecto';
+    OpenDlg.Filter := 'Node Editor Project (*.nep)|*.nep|JSON (*.json)|*.json|Todos (*.*)|*.*';
+    if OpenDlg.Execute then
+      LoadProject(OpenDlg.FileName);
+  finally
+    OpenDlg.Free;
+  end;
+end;
+
+// =============================================================================
+//  RunFlow
+// =============================================================================
+procedure TFormNodeEditor.RunFlow;
 var
   I    : Integer;
   N    : TNode;
@@ -931,6 +1410,20 @@ begin
   // Ctrl+Enter = Executar fluxo
   if (Key = vkReturn) and (ssCtrl in Shift) then
     RunFlow;
+  // Ctrl+S = Guardar (Ctrl+Shift+S = Guardar Como)
+  if (Key = Ord('S')) and (ssCtrl in Shift) then
+  begin
+    if (ssShift in Shift) or (FProjectFile = '') then
+      BtnSaveClick(nil)
+    else
+      SaveProject(FProjectFile);
+  end;
+  // Ctrl+O = Abrir
+  if (Key = Ord('O')) and (ssCtrl in Shift) then
+    BtnLoadClick(nil);
+  // Ctrl+N = Novo
+  if (Key = Ord('N')) and (ssCtrl in Shift) then
+    BtnNewClick(nil);
 end;
 
 // =============================================================================
@@ -953,7 +1446,6 @@ var
   Pt, CPt  : TPointF;   // Pt = ecrã, CPt = canvas
   IsDouble : Boolean;
   RowIdx   : Integer;
-  RunBtnR  : TRectF;
   SelCount : Integer;
 begin
   Pt  := TPointF.Create(X, Y);
@@ -968,24 +1460,6 @@ begin
   end;
 
   if Button <> TMouseButton.mbLeft then Exit;
-
-  // --- Botão de execução ---
-  RunBtnR := TRectF.Create(PaintBox.Width-FPaletteW-120, 10,
-                            PaintBox.Width-FPaletteW-10,  38);
-  if RunBtnR.Contains(Pt) then begin RunFlow; Exit; end;
-
-  // --- Botões de zoom (canto inf. dir. do canvas) ---
-  if TRectF.Create(PaintBox.Width-FPaletteW-78, PaintBox.Height-36,
-                   PaintBox.Width-FPaletteW-10, PaintBox.Height-10).Contains(Pt) then
-  begin
-    if X > PaintBox.Width-FPaletteW-44 then
-      ZoomAt(-1, (PaintBox.Width-FPaletteW)/2, PaintBox.Height/2)   // –
-    else if X > PaintBox.Width-FPaletteW-78 then
-      ResetZoom                                                        // 100%
-    else
-      ZoomAt(1, (PaintBox.Width-FPaletteW)/2, PaintBox.Height/2);    // +
-    Exit;
-  end;
 
   // --- Painel de propriedades ---
   if Assigned(FPropNode) and InPropPanel(X) then
@@ -1144,9 +1618,6 @@ begin
           if SI > High(FMultiDragOffsets) then Break;
           NewX := CPt.X - FMultiDragOffsets[SI].X;
           NewY := CPt.Y - FMultiDragOffsets[SI].Y;
-          // Limita ao canvas
-          NewX := Max(4, Min(NewX, (PaintBox.Width-FPaletteW)/FZoom - NODE_W - 4));
-          NewY := Max(4, Min(NewY, PaintBox.Height/FZoom - NODE_H - 4));
           FNodes[I].Bounds := TRectF.Create(NewX, NewY, NewX+NODE_W, NewY+NODE_H);
           Inc(SI);
         end;
@@ -1238,6 +1709,7 @@ begin
   end;
 end;
 
+// Scroll do rato → zoom
 procedure TFormNodeEditor.PaintBoxMouseWheel(Sender: TObject;
   Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
 begin
@@ -1271,8 +1743,6 @@ begin
     ACanvas.Restore;  // fim da transformação zoom/pan
 
     // Elementos de UI fixos (não são afectados pelo zoom)
-    DrawRunButton(ACanvas, ADest);
-    DrawZoomControls(ACanvas, ADest);
     DrawPalette(ACanvas, ADest);
     if Assigned(FPropNode) then DrawPropPanel(ACanvas, ADest);
     if FLogVisible then DrawLogPanel(ACanvas, ADest);
@@ -1317,14 +1787,14 @@ begin
 
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
   Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeCap := TSkStrokeCap.Round;
-  if Conn.Selected then begin Paint.StrokeWidth := 12; Paint.Color := $80FFD740; end
-  else begin Paint.StrokeWidth := 6; Paint.Color := $15FFFFFF; end;
+  if Conn.Selected then begin Paint.StrokeWidth := WIRE_GLOW_SEL; Paint.Color := $80FFD740; end
+  else begin Paint.StrokeWidth := WIRE_GLOW; Paint.Color := $15FFFFFF; end;
   C.DrawPath(Path, Paint);
 
   Shader := TSkShader.MakeGradientLinear(P0, P3,
     [Src.Plugin.GetColor, Dst.Plugin.GetColor], nil, TSkTileMode.Clamp);
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 2.5;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := WIRE_W;
   Paint.StrokeCap := TSkStrokeCap.Round; Paint.Shader := Shader;
   C.DrawPath(Path, Paint);
 end;
@@ -1344,14 +1814,14 @@ begin
   Path := PB.Detach;
 
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 8;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := WIRE_GHOST;
   Paint.StrokeCap := TSkStrokeCap.Round; Paint.Color := $30FFFFFF;
   C.DrawPath(Path, Paint);
 
   Shader := TSkShader.MakeGradientLinear(P0, P3,
     [FWireSrc.Plugin.GetColor, $CCFFFFFF], nil, TSkTileMode.Clamp);
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 2;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := WIRE_W;
   Paint.StrokeCap := TSkStrokeCap.Round;
   Paint.PathEffect := TSkPathEffect.MakeDash([8,5], 0);
   Paint.Shader := Shader;
@@ -1362,6 +1832,10 @@ end;
 //  DrawNode
 // =============================================================================
 procedure TFormNodeEditor.DrawNode(const C: ISkCanvas; N: TNode);
+const
+  ICON_SIZE     = 18;
+  ICON_PAD      = 8;
+  ICON_TEXT_GAP = 6;
 var
   Paint     : ISkPaint;
   Font      : ISkFont;
@@ -1371,6 +1845,10 @@ var
   HlIn, HlOut: Boolean;
   ColBg     : TAlphaColor;
   StatusText: string;
+  SVGStr    : string;
+  SVGBrush  : TSkSVGBrush;
+  IconRect  : TRectF;
+  TitleX    : Single;
 begin
   Body := N.Bounds;
   Hdr  := TRectF.Create(Body.Left, Body.Top, Body.Right, Body.Top+HDR_H);
@@ -1399,16 +1877,44 @@ begin
   C.DrawRect(Hdr, Paint);
   C.Restore;
 
-  // Ícone + Título
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $FFFFFFFF;
-  Font  := TSkFont.Create(TSkTypeface.MakeDefault, 11, 1, 0);
-  Font.Edging := TSkFontEdging.AntiAlias; Font.Subpixel := True;
-  C.DrawSimpleText(N.Plugin.GetIconText + '  ' + N.Plugin.GetTitle,
-    Hdr.Left+8, Hdr.Top+HDR_H/2+4, Font, Paint);
+  // Ícone SVG + Título
+  IconRect := TRectF.Create(
+    Hdr.Left + ICON_PAD,
+    Hdr.Top  + (HDR_H - ICON_SIZE) / 2,
+    Hdr.Left + ICON_PAD + ICON_SIZE,
+    Hdr.Top  + (HDR_H - ICON_SIZE) / 2 + ICON_SIZE);
+  TitleX := IconRect.Right + ICON_TEXT_GAP;
+
+  SVGStr := N.Plugin.GetIconSVG;
+  if SVGStr <> '' then
+  begin
+    SVGBrush := TSkSVGBrush.Create;
+    try
+      SVGBrush.Source := SVGStr;
+      C.Save;
+      C.ClipRect(IconRect);
+      SVGBrush.Render(C, IconRect, 1.0);
+      C.Restore;
+    finally
+      SVGBrush.Free;
+    end;
+  end
+  else
+  begin
+    // Fallback: emoji se não houver SVG
+    Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := COL_TEXT_PRIMARY;
+    C.DrawSimpleText(N.Plugin.GetIconText, Hdr.Left + ICON_PAD,
+      Hdr.Top + HDR_H/2 + 4, MakeFont(14), Paint);
+  end;
+
+  // Título
+  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := COL_TEXT_PRIMARY;
+  Font  := MakeFont(FONT_NODE_TITLE);
+  C.DrawSimpleText(N.Plugin.GetTitle, TitleX, Hdr.Top + HDR_H/2 + 4, Font, Paint);
 
   // Propriedades (até 2 linhas visíveis)
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $FFAABBCC;
-  Font  := TSkFont.Create(TSkTypeface.MakeDefault, 9, 1, 0);
+  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := COL_TEXT_SECONDARY;
+  Font  := MakeFont(FONT_NODE_PROP);
   PropY := Hdr.Bottom+10;
   for I := 0 to Min(N.Plugin.Props.Count-1, 1) do
   begin
@@ -1430,7 +1936,7 @@ begin
       Paint.Color := $FF55FF55;
       StatusText  := '✓ OK';
     end;
-    Font := TSkFont.Create(TSkTypeface.MakeDefault, 8.5, 1, 0);
+    Font := MakeFont(FONT_NODE_STATUS);
     C.DrawSimpleText(StatusText, Body.Left+8, Body.Bottom-6, Font, Paint);
   end;
 
@@ -1440,7 +1946,7 @@ begin
 
   // Borda de seleção
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1.5;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W * 1.5;
   Paint.Color := ColIf(N.Selected, $FFFFD740, $30FFFFFF);
   C.DrawRoundRect(Body, CORNER_R, CORNER_R, Paint);
 end;
@@ -1454,34 +1960,12 @@ var Paint: ISkPaint; R: Single;
 begin
   R := PORT_R; if Highlight then R := PORT_R+3;
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 2;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W * 2;
   Paint.Color := ColIf(Highlight, $FFFFD740, $DDFFFFFF);
   C.DrawCircle(Pt.X, Pt.Y, R, Paint);
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
   Paint.Color := ColIf(IsOutput, $FF4FC3F7, $FF263859);
   C.DrawCircle(Pt.X, Pt.Y, R-2, Paint);
-end;
-
-// =============================================================================
-//  DrawRunButton
-// =============================================================================
-procedure TFormNodeEditor.DrawRunButton(const C: ISkCanvas; const R: TRectF);
-var Btn: TRectF; Paint: ISkPaint; Font: ISkFont; FP: ISkPaint;
-begin
-  Btn := TRectF.Create(R.Right-FPaletteW-120, 10, R.Right-FPaletteW-10, 38);
-
-  Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Color := $FF1B5E20;
-  C.DrawRoundRect(Btn, 6, 6, Paint);
-
-  Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1;
-  Paint.Color := $6055FF55;
-  C.DrawRoundRect(Btn, 6, 6, Paint);
-
-  FP := TSkPaint.Create; FP.AntiAlias := True; FP.Color := $FF88EE88;
-  Font := TSkFont.Create(TSkTypeface.MakeDefault, 11, 1, 0);
-  C.DrawSimpleText('▶  Executar  (Ctrl+↵)', Btn.Left+10, Btn.Top+18, Font, FP);
 end;
 
 // =============================================================================
@@ -1522,24 +2006,22 @@ begin
 
   // Separador
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W;
   Paint.Color := $40FFFFFF;
   C.DrawLine(TPointF.Create(PX, R.Top), TPointF.Create(PX, R.Bottom), Paint);
 
   // "COMPONENTES"
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $66FFFFFF;
-  CatFont := TSkFont.Create(TSkTypeface.MakeDefault, 9.5, 1, 0);
-  CatFont.Edging := TSkFontEdging.AntiAlias;
+  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := COL_TEXT_DISABLED;
+  CatFont := MakeFont(FONT_PAL_HEADER);
   C.DrawSimpleText('COMPONENTES', PX+PAL_PAD, R.Top+22, CatFont, Paint);
 
-  TitleFont := TSkFont.Create(TSkTypeface.MakeDefault, 10.5, 1, 0);
-  TitleFont.Edging := TSkFontEdging.AntiAlias;
-  SubFont := TSkFont.Create(TSkTypeface.MakeDefault, 8.5, 1, 0);
-  LabelPn := TSkPaint.Create; LabelPn.AntiAlias := True; LabelPn.Color := $FFFFFFFF;
-  SubPn   := TSkPaint.Create; SubPn.AntiAlias   := True; SubPn.Color   := $77FFFFFF;
+  TitleFont := MakeFont(FONT_PAL_TITLE);
+  SubFont   := MakeFont(FONT_PAL_DESC);
+  LabelPn := TSkPaint.Create; LabelPn.AntiAlias := True; LabelPn.Color := COL_TEXT_PRIMARY;
+  SubPn   := TSkPaint.Create; SubPn.AntiAlias   := True; SubPn.Color   := COL_TEXT_MUTED;
 
   CurY  := R.Top + 34;
-  CatF  := TSkFont.Create(TSkTypeface.MakeDefault, 9, 1, 0);
+  CatF  := MakeFont(FONT_PAL_CAT);
 
   for CatI := 0 to High(FPalCats) do
   begin
@@ -1557,7 +2039,7 @@ begin
     C.DrawRoundRect(TRectF.Create(PX+4, CurY, PX+8, CurY+CAT_HDR_H), 2, 2, Paint);
 
     // Label categoria + ícone colapsar
-    Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $CCFFFFFF;
+    Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := COL_TEXT_PRIMARY;
     if FPalCats[CatI].Collapsed then Arrow := '▶' else Arrow := '▼';
     C.DrawSimpleText(NodeCategoryNames[Cat], PX+14, CurY+17, CatF, Paint);
     C.DrawSimpleText(Arrow, R.Right-18, CurY+17, CatF, Paint);
@@ -1672,24 +2154,20 @@ begin
 
   // Borda direita
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W;
   Paint.Color := $50FFFFFF;
   C.DrawLine(TPointF.Create(PW,0), TPointF.Create(PW,R.Bottom), Paint);
 
   // Fontes
-  TitleFont := TSkFont.Create(TSkTypeface.MakeDefault, 13, 1, 0);
-  LabelFont := TSkFont.Create(TSkTypeface.MakeDefault, 9, 1, 0);
-  ValueFont := TSkFont.Create(TSkTypeface.MakeDefault, 10.5, 1, 0);
-  HintFont  := TSkFont.Create(TSkTypeface.MakeDefault, 8.5, 1, 0);
-  TitleFont.Edging := TSkFontEdging.AntiAlias;
-  LabelFont.Edging := TSkFontEdging.AntiAlias;
-  ValueFont.Edging := TSkFontEdging.AntiAlias;
-  HintFont.Edging  := TSkFontEdging.AntiAlias;
+  TitleFont := MakeFont(FONT_PROP_TITLE);
+  LabelFont := MakeFont(FONT_PROP_LABEL);
+  ValueFont := MakeFont(FONT_PROP_VALUE);
+  HintFont  := MakeFont(FONT_PROP_HINT);
 
-  TitlePn := TSkPaint.Create; TitlePn.AntiAlias := True; TitlePn.Color := $FFFFFFFF;
-  LabelPn := TSkPaint.Create; LabelPn.AntiAlias := True; LabelPn.Color := $FFAABBCC;
-  ValuePn := TSkPaint.Create; ValuePn.AntiAlias := True; ValuePn.Color := $FFFFFFFF;
-  HintPn  := TSkPaint.Create; HintPn.AntiAlias  := True; HintPn.Color  := $55FFFFFF;
+  TitlePn := TSkPaint.Create; TitlePn.AntiAlias := True; TitlePn.Color := COL_TEXT_PRIMARY;
+  LabelPn := TSkPaint.Create; LabelPn.AntiAlias := True; LabelPn.Color := COL_TEXT_SECONDARY;
+  ValuePn := TSkPaint.Create; ValuePn.AntiAlias := True; ValuePn.Color := COL_TEXT_PRIMARY;
+  HintPn  := TSkPaint.Create; HintPn.AntiAlias  := True; HintPn.Color  := COL_TEXT_MUTED;
 
   // Barra de cor do nó
   Paint := TSkPaint.Create; Paint.Color := FPropNode.Plugin.GetColor;
@@ -1707,7 +2185,7 @@ begin
 
   // Separador
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1; Paint.Color := $30FFFFFF;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W; Paint.Color := $30FFFFFF;
   C.DrawLine(TPointF.Create(ROW_PAD,74), TPointF.Create(PW-ROW_PAD,74), Paint);
 
   // Botão fechar
@@ -1715,7 +2193,7 @@ begin
   Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $20FFFFFF;
   C.DrawRoundRect(CloseRect, 4, 4, Paint);
   C.DrawSimpleText('×', CloseRect.Left+7, CloseRect.Bottom-6,
-    TSkFont.Create(TSkTypeface.MakeDefault, 14, 1, 0), TitlePn);
+    MakeFont(FONT_ICON_CLOSE), TitlePn);
 
   // Obtém definições para tipo amigável
   Defs := FPropNode.Plugin.GetPropertyDefs;
@@ -1776,7 +2254,7 @@ begin
     // Ícone de edição
     if I = FPropHover then
       C.DrawSimpleText('✎', RowRect.Right-18, LY+10,
-        TSkFont.Create(TSkTypeface.MakeDefault, 12, 1, 0), HintPn);
+        MakeFont(FONT_ICON_EDIT), HintPn);
   end;
 
   // Botão "+ Adicionar campo"
@@ -1821,19 +2299,18 @@ begin
   C.DrawRect(BgRect, Paint);
 
   Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1;
+  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := STROKE_W;
   Paint.Color := $40FFFFFF;
   C.DrawLine(TPointF.Create(BgRect.Left, BgRect.Top),
              TPointF.Create(BgRect.Right, BgRect.Top), Paint);
 
   // Header
-  FP := TSkPaint.Create; FP.AntiAlias := True; FP.Color := $66FFFFFF;
-  Font := TSkFont.Create(TSkTypeface.MakeDefault, 9, 1, 0);
+  FP := TSkPaint.Create; FP.AntiAlias := True; FP.Color := COL_TEXT_DISABLED;
+  Font := MakeFont(FONT_LOG);
   C.DrawSimpleText('LOG DE EXECUÇÃO', BgRect.Left+10, BgRect.Top+16, Font, FP);
 
   // Linhas do log (as últimas que cabem)
-  Font := TSkFont.Create(TSkTypeface.MakeDefault, 9.5, 1, 0);
-  Font.Edging := TSkFontEdging.AntiAlias;
+  Font := MakeFont(FONT_LOG);
   LY := BgRect.Bottom - 10;
   for I := FLogLines.Count-1 downto 0 do
   begin
@@ -1873,60 +2350,10 @@ begin
   Paint := TSkPaint.Create;
   Paint.AntiAlias   := True;
   Paint.Style       := TSkPaintStyle.Stroke;
-  Paint.StrokeWidth := 1.5 / FZoom;  // Mantém espessura visual constante
+  Paint.StrokeWidth := STROKE_W * 1.5 / FZoom;  // Mantém espessura visual constante
   Paint.Color       := $CC4FC3F7;
   Paint.PathEffect  := TSkPathEffect.MakeDash([6/FZoom, 3/FZoom], 0);
   C.DrawRect(R, Paint);
-end;
-
-// =============================================================================
-//  DrawZoomControls — botões +/100%/– no canto inferior direito do canvas
-// =============================================================================
-procedure TFormNodeEditor.DrawZoomControls(const C: ISkCanvas; const R: TRectF);
-var
-  BtnW, BtnH, X0, Y0: Single;
-  BgR, BtnR         : TRectF;
-  Paint             : ISkPaint;
-  Font              : ISkFont;
-  FP                : ISkPaint;
-  ZoomStr           : string;
-begin
-  BtnH := 26;
-  BtnW := 28;
-  X0   := R.Right - FPaletteW - 10 - BtnW*3 - 4;
-  Y0   := R.Bottom - BtnH - 10;
-
-  // Fundo do painel de zoom
-  BgR := TRectF.Create(X0-4, Y0-4, X0 + BtnW*3 + 4 + 4, Y0 + BtnH + 4);
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $CC0D0D1F;
-  C.DrawRoundRect(BgR, 6, 6, Paint);
-  Paint := TSkPaint.Create; Paint.AntiAlias := True;
-  Paint.Style := TSkPaintStyle.Stroke; Paint.StrokeWidth := 1; Paint.Color := $40FFFFFF;
-  C.DrawRoundRect(BgR, 6, 6, Paint);
-
-  Font := TSkFont.Create(TSkTypeface.MakeDefault, 11, 1, 0);
-  Font.Edging := TSkFontEdging.AntiAlias;
-  FP := TSkPaint.Create; FP.AntiAlias := True; FP.Color := $DDFFFFFF;
-
-  // Botão –
-  BtnR := TRectF.Create(X0, Y0, X0+BtnW, Y0+BtnH);
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $18FFFFFF;
-  C.DrawRoundRect(BtnR, 4, 4, Paint);
-  C.DrawSimpleText('−', BtnR.Left+8, BtnR.Bottom-7, Font, FP);
-
-  // Botão 100% (label com zoom actual)
-  ZoomStr := IntToStr(Round(FZoom*100)) + '%';
-  BtnR := TRectF.Create(X0+BtnW+2, Y0, X0+BtnW*2+2, Y0+BtnH);
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $18FFFFFF;
-  C.DrawRoundRect(BtnR, 4, 4, Paint);
-  C.DrawSimpleText(ZoomStr, BtnR.Left + (BtnW - Length(ZoomStr)*6)*0.5,
-    BtnR.Bottom-7, Font, FP);
-
-  // Botão +
-  BtnR := TRectF.Create(X0+BtnW*2+4, Y0, X0+BtnW*3+4, Y0+BtnH);
-  Paint := TSkPaint.Create; Paint.AntiAlias := True; Paint.Color := $18FFFFFF;
-  C.DrawRoundRect(BtnR, 4, 4, Paint);
-  C.DrawSimpleText('+', BtnR.Left+8, BtnR.Bottom-7, Font, FP);
 end;
 
 end.

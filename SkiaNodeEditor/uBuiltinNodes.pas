@@ -26,6 +26,7 @@ type
     function GetCategory   : TNodeCategory; override;
     function GetDescription: string;       override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetMinInputs  : Integer;      override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
@@ -37,6 +38,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -47,6 +49,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -57,6 +60,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -67,6 +71,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -76,6 +81,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -86,6 +92,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -95,6 +102,7 @@ type
     function GetColor      : Cardinal;  override;
     function GetCategory   : TNodeCategory; override;
     function GetIconText   : string;       override;
+    function GetIconSVG    : string;       override;
     function GetPropertyDefs: TArray<TNodePropertyDef>; override;
     function Execute(const AInput: TNodeData): TNodeData; override;
   end;
@@ -117,6 +125,14 @@ function TWebhookNode.GetCategory   : TNodeCategory; begin Result := ncTrigger; 
 function TWebhookNode.GetDescription: string;        begin Result := 'Recebe chamadas HTTP externas'; end;
 function TWebhookNode.GetIconText   : string;        begin Result := '⚡';        end;
 function TWebhookNode.GetMinInputs  : Integer;       begin Result := 0;           end;
+function TWebhookNode.GetIconSVG: string;
+begin
+  // Raio / bolt — Trigger/Webhook
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>' +
+    '</svg>';
+end;
 
 function TWebhookNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -145,6 +161,16 @@ function THTTPRequestNode.GetTitle    : string;        begin Result := 'HTTP Req
 function THTTPRequestNode.GetColor    : Cardinal;   begin Result := $FF00897B;      end;
 function THTTPRequestNode.GetCategory : TNodeCategory; begin Result := ncHTTP;         end;
 function THTTPRequestNode.GetIconText : string;        begin Result := '🌐';          end;
+function THTTPRequestNode.GetIconSVG: string;
+begin
+  // Globo / world
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<line x1="2" y1="12" x2="22" y2="12"/>' +
+    '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' +
+    '</svg>';
+end;
 
 function THTTPRequestNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -175,6 +201,18 @@ function TTransformNode.GetTitle    : string;        begin Result := 'Transforma
 function TTransformNode.GetColor    : Cardinal;   begin Result := $FF2979FF;     end;
 function TTransformNode.GetCategory : TNodeCategory; begin Result := ncTransform;   end;
 function TTransformNode.GetIconText : string;        begin Result := '🔄';         end;
+function TTransformNode.GetIconSVG: string;
+begin
+  // Setas de transformação / shuffle
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="16 3 21 3 21 8"/>' +
+    '<line x1="4" y1="20" x2="21" y2="3"/>' +
+    '<polyline points="21 16 21 21 16 21"/>' +
+    '<line x1="15" y1="15" x2="21" y2="21"/>' +
+    '<line x1="4" y1="4" x2="9" y2="9"/>' +
+    '</svg>';
+end;
 
 function TTransformNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -207,6 +245,17 @@ function TConditionNode.GetTitle    : string;        begin Result := 'Condição
 function TConditionNode.GetColor    : Cardinal;   begin Result := $FF00BFA5;     end;
 function TConditionNode.GetCategory : TNodeCategory; begin Result := ncLogic;       end;
 function TConditionNode.GetIconText : string;        begin Result := '🔀';         end;
+function TConditionNode.GetIconSVG: string;
+begin
+  // Git-branch / fork — lógica de decisão
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<line x1="6" y1="3" x2="6" y2="15"/>' +
+    '<circle cx="18" cy="6" r="3"/>' +
+    '<circle cx="6" cy="18" r="3"/>' +
+    '<path d="M18 9a9 9 0 0 1-9 9"/>' +
+    '</svg>';
+end;
 
 function TConditionNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -247,6 +296,15 @@ function TSendEmailNode.GetTitle    : string;        begin Result := 'Enviar E-m
 function TSendEmailNode.GetColor    : Cardinal;   begin Result := $FFFF6F00;       end;
 function TSendEmailNode.GetCategory : TNodeCategory; begin Result := ncIO;            end;
 function TSendEmailNode.GetIconText : string;        begin Result := '📧';           end;
+function TSendEmailNode.GetIconSVG: string;
+begin
+  // Envelope / mail
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>' +
+    '<polyline points="22,6 12,13 2,6"/>' +
+    '</svg>';
+end;
 
 function TSendEmailNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -278,6 +336,16 @@ function TSaveToDatabaseNode.GetTitle    : string;        begin Result := 'Salva
 function TSaveToDatabaseNode.GetColor    : Cardinal;   begin Result := $FF7B1FA2;       end;
 function TSaveToDatabaseNode.GetCategory : TNodeCategory; begin Result := ncIO;            end;
 function TSaveToDatabaseNode.GetIconText : string;        begin Result := '🗄';           end;
+function TSaveToDatabaseNode.GetIconSVG: string;
+begin
+  // Cilindro / base de dados
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<ellipse cx="12" cy="5" rx="9" ry="3"/>' +
+    '<path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>' +
+    '<path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>' +
+    '</svg>';
+end;
 
 function TSaveToDatabaseNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -306,6 +374,15 @@ function TDelayNode.GetTitle    : string;        begin Result := 'Delay';      e
 function TDelayNode.GetColor    : Cardinal;   begin Result := $FF5D4037;    end;
 function TDelayNode.GetCategory : TNodeCategory; begin Result := ncUtility;    end;
 function TDelayNode.GetIconText : string;        begin Result := '⏱';        end;
+function TDelayNode.GetIconSVG: string;
+begin
+  // Relógio / clock
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<polyline points="12 6 12 12 16 14"/>' +
+    '</svg>';
+end;
 
 function TDelayNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin
@@ -334,6 +411,15 @@ function TDebugNode.GetTitle    : string;        begin Result := 'Debug Log';   
 function TDebugNode.GetColor    : Cardinal;   begin Result := $FF37474F;     end;
 function TDebugNode.GetCategory : TNodeCategory; begin Result := ncUtility;     end;
 function TDebugNode.GetIconText : string;        begin Result := '🐛';         end;
+function TDebugNode.GetIconSVG: string;
+begin
+  // Terminal / consola
+  Result :=
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polyline points="4 17 10 11 4 5"/>' +
+    '<line x1="12" y1="19" x2="20" y2="19"/>' +
+    '</svg>';
+end;
 
 function TDebugNode.GetPropertyDefs: TArray<TNodePropertyDef>;
 begin

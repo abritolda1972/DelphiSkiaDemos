@@ -11,11 +11,244 @@ object FormNodeEditor: TFormNodeEditor
   OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
   DesignerMasterStyle = 0
+  object ToolBar: TRectangle
+    Align = Top
+    Fill.Color = xFF0F0F23
+    Size.Width = 1100.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Color = xFF2A2A4A
+    object BtnZoomOut: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 8.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 36.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnZoomOutClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 36.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 14.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = #8722
+      end
+    end
+    object BtnZoomReset: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 50.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 52.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnZoomResetClick
+      object LblZoom: TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 52.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = '100%'
+      end
+    end
+    object BtnZoomIn: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 108.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 36.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnZoomInClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 36.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 14.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = '+'
+      end
+    end
+    object BtnFit: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 152.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 80.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnFitClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 80.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = #8634' Recentrar'
+      end
+    end
+    object TRectangle
+      Fill.Color = xFF2A2A4A
+      HitTest = False
+      Position.X = 242.000000000000000000
+      Position.Y = 10.000000000000000000
+      Size.Width = 1.000000000000000000
+      Size.Height = 24.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+    end
+    object BtnRun: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1B5E20
+      Position.X = 250.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 180.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF2E7D32
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnRunClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 180.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFF88EE88
+        TextSettings.HorzAlign = Center
+        Text = #9654' Executar  (Ctrl+'#8629')'
+      end
+    end
+    object TRectangle
+      Fill.Color = xFF2A2A4A
+      HitTest = False
+      Position.X = 440.000000000000000000
+      Position.Y = 10.000000000000000000
+      Size.Width = 1.000000000000000000
+      Size.Height = 24.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+    end
+    object BtnNew: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 450.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 60.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnNewClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 60.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = #9723' Novo'
+      end
+    end
+    object BtnLoad: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 516.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 68.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnLoadClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 68.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = #62658' Abrir'
+      end
+    end
+    object BtnSave: TRectangle
+      Cursor = crHandPoint
+      Fill.Color = xFF1E1E3A
+      Position.X = 590.000000000000000000
+      Position.Y = 8.000000000000000000
+      Size.Width = 80.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = xFF3A3A5C
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = BtnSaveClick
+      object TLabel
+        Align = Contents
+        StyledSettings = [Style]
+        Size.Width = 80.000000000000000000
+        Size.Height = 28.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 10.000000000000000000
+        TextSettings.FontColor = xFFCCDDEE
+        TextSettings.HorzAlign = Center
+        Text = #62654' Guardar'
+      end
+    end
+    object LblProjectName: TLabel
+      Align = Right
+      StyledSettings = [Style]
+      Margins.Right = 12.000000000000000000
+      Position.X = 888.000000000000000000
+      Size.Width = 200.000000000000000000
+      Size.Height = 44.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 10.000000000000000000
+      TextSettings.FontColor = xFF667788
+      TextSettings.HorzAlign = Trailing
+      Text = 'Novo Projecto'
+    end
+  end
   object PaintBox: TSkPaintBox
     Align = Client
     HitTest = True
     Size.Width = 1100.000000000000000000
-    Size.Height = 620.000000000000000000
+    Size.Height = 576.000000000000000000
     Size.PlatformDefault = False
     OnMouseDown = PaintBoxMouseDown
     OnMouseMove = PaintBoxMouseMove

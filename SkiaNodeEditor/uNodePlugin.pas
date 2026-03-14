@@ -130,6 +130,7 @@ type
     function GetCategory   : TNodeCategory;               virtual;
     function GetDescription: string;                      virtual;
     function GetIconText   : string;                      virtual;
+    function GetIconSVG    : string;                      virtual;  // SVG inline; '' = usa emoji
     function GetMinInputs  : Integer;                     virtual;
     function GetMaxOutputs : Integer;                     virtual;
 
@@ -159,6 +160,7 @@ type
     function GetCategory   : TNodeCategory; override;
     function GetDescription: string;        override;
     function GetIconText   : string;        override;
+    function GetIconSVG    : string;        override;
     function GetMinInputs  : Integer;       override;
     function GetMaxOutputs : Integer;       override;
   end;
@@ -277,6 +279,7 @@ end;
 function TNodePluginBase.GetCategory   : TNodeCategory;  begin Result := ncCustom;  end;
 function TNodePluginBase.GetDescription: string;          begin Result := '';         end;
 function TNodePluginBase.GetIconText   : string;          begin Result := '⚙';       end;
+function TNodePluginBase.GetIconSVG    : string;          begin Result := '';         end;
 function TNodePluginBase.GetMinInputs  : Integer;         begin Result := 1;          end;
 function TNodePluginBase.GetMaxOutputs : Integer;         begin Result := 1;          end;
 
@@ -294,6 +297,7 @@ procedure TNodePluginBase.Finalize;   begin end;
 function TNodePlugin.GetCategory   : TNodeCategory; begin Result := ncCustom;  end;
 function TNodePlugin.GetDescription: string;         begin Result := '';         end;
 function TNodePlugin.GetIconText   : string;         begin Result := '⚙';       end;
+function TNodePlugin.GetIconSVG    : string;         begin Result := '';         end;
 function TNodePlugin.GetMinInputs  : Integer;        begin Result := 1;          end;
 function TNodePlugin.GetMaxOutputs : Integer;        begin Result := 1;          end;
 
