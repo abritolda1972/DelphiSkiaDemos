@@ -246,6 +246,7 @@ object FormNodeEditor: TFormNodeEditor
   end
   object PaintBox: TSkPaintBox
     Align = Client
+    ClipChildren = True
     HitTest = True
     Size.Width = 1100.000000000000000000
     Size.Height = 576.000000000000000000
