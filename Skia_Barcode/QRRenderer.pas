@@ -48,6 +48,16 @@ type
     SizeFraction: Single;   // 0.10 .. 0.35
   end;
 
+  { Área reservada ao logo, alinhada à grelha de módulos do QR.
+    Tudo o que está dentro desta área não é desenhado como módulo —
+    o scanner vê uma zona limpa e o ECC (nível H) recupera os dados. }
+  TQRReservedArea = record
+    HasReserve:         Boolean;
+    StartCol, EndCol:   Integer;   // inclusivo, em coordenadas de módulo
+    StartRow, EndRow:   Integer;   // inclusivo
+    RectPx:             TRectF;    // rectângulo em pixels, alinhado à grelha
+  end;
+
   TQRRenderer = class
   private
     class function MakeLinearShader(const QRColor: TQRColor;
@@ -61,16 +71,20 @@ type
       Scale: Single; StartCol, StartRow: Integer;
       const Style: TQRFinderStyle; BgColor: TAlphaColor;
       T: Single); static;
+    class function ComputeReservedArea(QRRows: Integer; Scale,
+      LogoSizeFraction: Single): TQRReservedArea; static;
+    class procedure DrawLogoOnReserved(const ACanvas: ISkCanvas;
+      const ALogoImage: ISkImage; const Reserved: TQRReservedArea;
+      BgColor: TAlphaColor); static;
   public
-    { Renderiza o QR (sem logo) no canvas fornecido.
+    { Renderiza o QR no canvas fornecido. Se ALogoImage <> nil e
+      LogoSizeFraction > 0, reserva um quadrado central alinhado à grelha
+      (os módulos nessa zona não são desenhados) e desenha o logo por cima.
       Pode ser chamado de qualquer thread — não toca em componentes VCL. }
     class procedure RenderQR(const ACanvas: ISkCanvas; ASize: Single;
-      const Opts: TQROptions; const ATexto: string); static;
-
-    { Desenha o logo centrado. LogoImage pode ser nil. }
-    class procedure DrawLogo(const ACanvas: ISkCanvas; AQRSize: Single;
-      const ALogoImage: ISkImage; SizeFraction: Single;
-      BgColor: TAlphaColor); static;
+      const Opts: TQROptions; const ATexto: string;
+      const ALogoImage: ISkImage = nil;
+      LogoSizeFraction: Single = 0); static;
 
     { Gera a imagem completa (QR + logo) off-screen e devolve PNG em bytes.
       Thread-safe. Lança excepção em caso de erro. }
@@ -241,27 +255,177 @@ end;
 // TQRRenderer — métodos públicos
 // ---------------------------------------------------------------------------
 
-class procedure TQRRenderer.RenderQR(const ACanvas: ISkCanvas; ASize: Single;
-  const Opts: TQROptions; const ATexto: string);
+class function TQRRenderer.ComputeReservedArea(QRRows: Integer; Scale,
+  LogoSizeFraction: Single): TQRReservedArea;
+const
+  { Cap de segurança: mesmo com ECC nível H (~30%) o logo nunca deve
+    ocupar mais de ~25% da área total de módulos, senão o ECC não
+    consegue sempre reconstruir. Fracção 0.25 = 6.25% de área ≈ seguro. }
+  MAX_SAFE_FRACTION = 0.30;
 var
-  QRCode:  TDelphiZXingQRCode;
+  SafeFraction:      Single;
+  DesiredPx:         Single;
+  DesiredModules:    Integer;
+  Span:              Integer;
+  CenterMod:         Integer;
+  Half:              Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  if (LogoSizeFraction <= 0) or (QRRows <= 0) then
+    Exit;
+
+  // Clamp ao máximo seguro — logo maior do que isto parte o QR mesmo com ECC-H
+  SafeFraction := LogoSizeFraction;
+  if SafeFraction > MAX_SAFE_FRACTION then
+    SafeFraction := MAX_SAFE_FRACTION;
+
+  // Tamanho desejado do logo em pixels (inclui margem de ~1 módulo de cada lado)
+  DesiredPx      := (QRRows * Scale) * SafeFraction;
+  DesiredModules := Ceil(DesiredPx / Scale) + 2;   // +1 módulo de padding de cada lado
+
+  // Força número ímpar para centrar perfeitamente num módulo central
+  if (DesiredModules mod 2) = 0 then
+    Inc(DesiredModules);
+
+  // QR matrices (com QZ=2) têm sempre número ímpar de linhas/colunas — o centro é um módulo
+  CenterMod := QRRows div 2;
+  Half      := DesiredModules div 2;
+
+  Span := DesiredModules;
+
+  Result.HasReserve := True;
+  Result.StartCol   := CenterMod - Half;
+  Result.EndCol     := CenterMod + Half;
+  Result.StartRow   := CenterMod - Half;
+  Result.EndRow     := CenterMod + Half;
+
+  // Rectângulo em pixels — alinhado exactamente à grelha
+  Result.RectPx := TRectF.Create(
+    Result.StartCol * Scale,
+    Result.StartRow * Scale,
+    (Result.StartCol + Span) * Scale,
+    (Result.StartRow + Span) * Scale);
+end;
+
+class procedure TQRRenderer.DrawLogoOnReserved(const ACanvas: ISkCanvas;
+  const ALogoImage: ISkImage; const Reserved: TQRReservedArea;
+  BgColor: TAlphaColor);
+var
+  BgPaint, ImgPaint:  ISkPaint;
+  BgRR:               ISkRoundRect;
+  BgRadii:            TSkRoundRectRadii;
+  BgRadius:           TPointF;
+  Radius:             Single;
+  LogoRect, SrcRect:  TRectF;
+  Inset:              Single;
+  ImgAspect:          Single;
+  BoxW, BoxH:         Single;
+  DrawW, DrawH:       Single;
+  CX, CY:             Single;
+begin
+  if (not Reserved.HasReserve) or (not Assigned(ALogoImage)) then
+    Exit;
+
+  // Fundo alinhado à grelha — o scanner vê uma zona limpa, perfeitamente quadrada.
+  // Cantos ligeiramente arredondados (estético, sem comprometer a grelha).
+  BgPaint := TSkPaint.Create;
+  BgPaint.AntiAlias := True;
+  BgPaint.Style     := TSkPaintStyle.Fill;
+  BgPaint.Color     := BgColor;
+
+  Radius := Reserved.RectPx.Width * 0.08;
+  BgRadius := TPointF.Create(Radius, Radius);
+  BgRR     := TSkRoundRect.Create;
+  BgRadii[TSkRoundRectCorner.UpperLeft]  := BgRadius;
+  BgRadii[TSkRoundRectCorner.UpperRight] := BgRadius;
+  BgRadii[TSkRoundRectCorner.LowerRight] := BgRadius;
+  BgRadii[TSkRoundRectCorner.LowerLeft]  := BgRadius;
+  BgRR.SetRect(Reserved.RectPx, BgRadii);
+  ACanvas.DrawRoundRect(BgRR, BgPaint);
+
+  // Caixa quadrada interior (com pequena margem visual relativa ao fundo)
+  Inset := Reserved.RectPx.Width * 0.10;
+  LogoRect := TRectF.Create(
+    Reserved.RectPx.Left   + Inset,
+    Reserved.RectPx.Top    + Inset,
+    Reserved.RectPx.Right  - Inset,
+    Reserved.RectPx.Bottom - Inset);
+
+  // Preserva o rácio de aspecto do logo original (modo "fit" / letterbox).
+  // Assim imagens não-quadradas não ficam distorcidas — as faixas
+  // laterais são preenchidas pelo fundo da área reservada (BgColor).
+  if (ALogoImage.Width > 0) and (ALogoImage.Height > 0) then
+  begin
+    ImgAspect := ALogoImage.Width / ALogoImage.Height;
+    BoxW      := LogoRect.Width;
+    BoxH      := LogoRect.Height;
+
+    if ImgAspect >= 1.0 then
+    begin
+      // Imagem mais larga do que alta — limitada pela largura
+      DrawW := BoxW;
+      DrawH := BoxW / ImgAspect;
+    end
+    else
+    begin
+      // Imagem mais alta do que larga — limitada pela altura
+      DrawH := BoxH;
+      DrawW := BoxH * ImgAspect;
+    end;
+
+    CX := (LogoRect.Left + LogoRect.Right)  * 0.5;
+    CY := (LogoRect.Top  + LogoRect.Bottom) * 0.5;
+
+    LogoRect := TRectF.Create(
+      CX - DrawW * 0.5,
+      CY - DrawH * 0.5,
+      CX + DrawW * 0.5,
+      CY + DrawH * 0.5);
+  end;
+
+  SrcRect  := TRectF.Create(0, 0, ALogoImage.Width, ALogoImage.Height);
+  ImgPaint := TSkPaint.Create;
+  ImgPaint.AntiAlias := True;
+
+  ACanvas.DrawImageRect(
+    ALogoImage,
+    SrcRect,
+    LogoRect,
+    TSkSamplingOptions.Create(TSkFilterMode.Linear, TSkMipmapMode.Linear),
+    ImgPaint);
+end;
+
+class procedure TQRRenderer.RenderQR(const ACanvas: ISkCanvas; ASize: Single;
+  const Opts: TQROptions; const ATexto: string;
+  const ALogoImage: ISkImage; LogoSizeFraction: Single);
+var
+  QRCode:   TDelphiZXingQRCode;
   Row, Col, QZ: Integer;
-  Scale:   Single;
+  Scale:    Single;
   CX, CY, R, T: Single;
-  Paint:   ISkPaint;
-  Shader:  ISkShader;
-  Bounds:  TRectF;
+  Paint:    ISkPaint;
+  Shader:   ISkShader;
+  Bounds:   TRectF;
+  Reserved: TQRReservedArea;
 begin
   QRCode := TDelphiZXingQRCode.Create;
   try
     QRCode.Data                 := ATexto;
     QRCode.Encoding             := qrAuto;
     QRCode.QuietZone            := 2;
-    QRCode.ErrorCorrectionLevel := 3; // H
+    QRCode.ErrorCorrectionLevel := 3; // H — permite recuperar ~30% de módulos
 
     QZ     := QRCode.QuietZone;
     Scale  := ASize / QRCode.Rows;
     Bounds := TRectF.Create(0, 0, ASize, ASize);
+
+    // Área reservada ao logo, alinhada à grelha de módulos. Módulos dentro
+    // desta área NÃO são desenhados — o scanner vê uma zona limpa e o
+    // ECC reconstrói os dados em falta.
+    if Assigned(ALogoImage) and (LogoSizeFraction > 0) then
+      Reserved := ComputeReservedArea(QRCode.Rows, Scale, LogoSizeFraction)
+    else
+      FillChar(Reserved, SizeOf(Reserved), 0);
 
     Paint := TSkPaint.Create;
     Paint.Style := TSkPaintStyle.Fill;
@@ -273,6 +437,7 @@ begin
     for Row := 0 to QRCode.Rows - 1 do
       for Col := 0 to QRCode.Columns - 1 do
       begin
+        // Salta finder patterns (redesenhados em seguida com o estilo escolhido)
         if ((Row >= QZ) and (Row <= QZ + 7) and
             (Col >= QZ) and (Col <= QZ + 7)) or
            ((Row >= QZ) and (Row <= QZ + 7) and
@@ -281,6 +446,13 @@ begin
            ((Row >= QRCode.Rows - QZ - 8) and
             (Row <= QRCode.Rows - QZ - 1) and
             (Col >= QZ) and (Col <= QZ + 7)) then
+          Continue;
+
+        // Salta módulos dentro da zona reservada ao logo — ficam a BgColor.
+        // O ECC (nível H) reconstrói os dados perdidos na leitura.
+        if Reserved.HasReserve and
+           (Row >= Reserved.StartRow) and (Row <= Reserved.EndRow) and
+           (Col >= Reserved.StartCol) and (Col <= Reserved.EndCol) then
           Continue;
 
         if not QRCode.IsBlack[Row, Col] then
@@ -310,70 +482,13 @@ begin
     DrawFinderSk(ACanvas, Scale,
       QZ, QRCode.Rows - QZ - 7, Opts.FinderStyle, Opts.BgColor, 1.0);
 
+    // Desenha o logo por cima da zona já reservada (sem módulos por baixo).
+    if Reserved.HasReserve then
+      DrawLogoOnReserved(ACanvas, ALogoImage, Reserved, Opts.BgColor);
+
   finally
     QRCode.Free;
   end;
-end;
-
-class procedure TQRRenderer.DrawLogo(const ACanvas: ISkCanvas;
-  AQRSize: Single; const ALogoImage: ISkImage; SizeFraction: Single;
-  BgColor: TAlphaColor);
-var
-  LogoSize:         Single;
-  LogoRect:         TRectF;
-  CenterX, CenterY: Single;
-  BgPaint:          ISkPaint;
-  BgPad:            Single;
-  BgRect:           TRectF;
-  BgRR:             ISkRoundRect;
-  BgRadii:          TSkRoundRectRadii;
-  BgRadius:         TPointF;
-  ImgPaint:         ISkPaint;
-  SrcRect:          TRectF;
-begin
-  if not Assigned(ALogoImage) then Exit;
-
-  LogoSize := AQRSize * SizeFraction;
-  CenterX  := AQRSize / 2;
-  CenterY  := AQRSize / 2;
-
-  LogoRect := TRectF.Create(
-    CenterX - LogoSize / 2,
-    CenterY - LogoSize / 2,
-    CenterX + LogoSize / 2,
-    CenterY + LogoSize / 2);
-
-  BgPad  := LogoSize * 0.06;
-  BgRect := TRectF.Create(
-    LogoRect.Left   - BgPad,
-    LogoRect.Top    - BgPad,
-    LogoRect.Right  + BgPad,
-    LogoRect.Bottom + BgPad);
-
-  BgPaint := TSkPaint.Create;
-  BgPaint.AntiAlias := True;
-  BgPaint.Style     := TSkPaintStyle.Fill;
-  BgPaint.Color     := BgColor;
-
-  BgRadius := TPointF.Create(BgPad * 2, BgPad * 2);
-  BgRR     := TSkRoundRect.Create;
-  BgRadii[TSkRoundRectCorner.UpperLeft]  := BgRadius;
-  BgRadii[TSkRoundRectCorner.UpperRight] := BgRadius;
-  BgRadii[TSkRoundRectCorner.LowerRight] := BgRadius;
-  BgRadii[TSkRoundRectCorner.LowerLeft]  := BgRadius;
-  BgRR.SetRect(BgRect, BgRadii);
-  ACanvas.DrawRoundRect(BgRR, BgPaint);
-
-  SrcRect  := TRectF.Create(0, 0, ALogoImage.Width, ALogoImage.Height);
-  ImgPaint := TSkPaint.Create;
-  ImgPaint.AntiAlias := True;
-
-  ACanvas.DrawImageRect(
-    ALogoImage,
-    SrcRect,
-    LogoRect,
-    TSkSamplingOptions.Create(TSkFilterMode.Linear, TSkMipmapMode.Linear),
-    ImgPaint);
 end;
 
 class function TQRRenderer.GeneratePNG(const ATexto: string;
@@ -391,19 +506,13 @@ begin
 
   Surface.Canvas.Clear(TAlphaColors.Null);
 
-  RenderQR(Surface.Canvas, ExportSize, Opts, ATexto);
-
   // Constrói ISkImage do logo a partir dos bytes (thread-safe)
   LogoImage := nil;
   if Length(Logo.Bytes) > 0 then
-  begin
     LogoImage := TSkImage.MakeFromEncoded(Logo.Bytes);
-    // Se falhar o decode, simplesmente não desenha logo
-  end;
 
-  if Assigned(LogoImage) then
-    DrawLogo(Surface.Canvas, ExportSize, LogoImage,
-      Logo.SizeFraction, Opts.BgColor);
+  RenderQR(Surface.Canvas, ExportSize, Opts, ATexto,
+    LogoImage, Logo.SizeFraction);
 
   Image := Surface.MakeImageSnapshot;
   if not Assigned(Image) then

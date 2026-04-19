@@ -88,7 +88,9 @@ type
     ProgressLote:      TProgressBar;
     LblProgressInfo:   TLabel;       // "3 / 10 — Sucesso: 2  Erro: 1"
     LblBatchStatus:    TLabel;
-    Button1: TButton;       // "Em curso..." / "Concluído"
+    Button1: TButton;
+    Label1: TLabel;
+    Label2: TLabel;       // "Em curso..." / "Concluído"
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -226,9 +228,8 @@ begin
     ADest.Left + (ADest.Width  - QRSize) / 2,
     ADest.Top  + (ADest.Height - QRSize) / 2);
 
-  TQRRenderer.RenderQR(ACanvas, QRSize, FCurrentOpts, EdtTexto.Lines.Text);
-  TQRRenderer.DrawLogo(ACanvas, QRSize, FLogoImage,
-    TrkLogoSize.Position / 100.0, FCurrentOpts.BgColor);
+  TQRRenderer.RenderQR(ACanvas, QRSize, FCurrentOpts, EdtTexto.Lines.Text,
+    FLogoImage, TrkLogoSize.Position / 100.0);
 
   ACanvas.Restore;
 end;
@@ -277,8 +278,11 @@ begin
 
   EdtTexto.Lines.Text := 'https://meusite.com';
 
+  // Max=30 corresponde ao cap de segurança interno do renderer
+  // (ComputeReservedArea.MAX_SAFE_FRACTION). Acima disto o ECC-H
+  // pode não conseguir reconstruir os dados sob o logo.
   TrkLogoSize.Min      := 10;
-  TrkLogoSize.Max      := 35;
+  TrkLogoSize.Max      := 30;
   TrkLogoSize.Position := 20;
   TrkLogoSize.TickStyle := tsNone;
 
@@ -351,6 +355,9 @@ begin
     if not Dlg.Execute then Exit;
 
     FLogoImage := TSkImage.MakeFromEncodedFile(Dlg.FileName);
+    var
+    LSingle := FLogoImage.Height;
+    LSingle := FLogoImage.Width;
 
     if not Assigned(FLogoImage) then
     begin

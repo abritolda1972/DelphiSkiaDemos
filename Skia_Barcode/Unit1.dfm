@@ -18,7 +18,7 @@ object Form1: TForm1
   TextHeight = 17
   object PaintBox: TSkPaintBox
     Left = 280
-    Top = 16
+    Top = 8
     Width = 684
     Height = 684
     Anchors = [akLeft, akTop, akRight, akBottom]
@@ -115,10 +115,36 @@ object Form1: TForm1
   end
   object LblLogoSize: TLabel
     Left = 16
-    Top = 604
+    Top = 623
     Width = 116
     Height = 17
     Caption = 'Tamanho logo: 20%'
+  end
+  object Label1: TLabel
+    Left = 16
+    Top = 604
+    Width = 230
+    Height = 13
+    Caption = '(Imagens quadradas, mesma altura e largura)'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clRed
+    Font.Height = 13
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    ParentFont = False
+  end
+  object Label2: TLabel
+    Left = 186
+    Top = 626
+    Width = 70
+    Height = 13
+    Caption = 'ECC m'#225'x. 30%'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clRed
+    Font.Height = 13
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    ParentFont = False
   end
   object EdtTexto: TMemo
     Left = 16
@@ -272,7 +298,7 @@ object Form1: TForm1
   end
   object TrkLogoSize: TTrackBar
     Left = 16
-    Top = 622
+    Top = 641
     Width = 240
     Height = 28
     Max = 35
@@ -284,7 +310,7 @@ object Form1: TForm1
   end
   object BtnGerar: TButton
     Left = 16
-    Top = 662
+    Top = 681
     Width = 240
     Height = 34
     Caption = 'Gerar QR Code'
@@ -299,7 +325,7 @@ object Form1: TForm1
   end
   object BtnSalvar: TButton
     Left = 16
-    Top = 704
+    Top = 723
     Width = 240
     Height = 34
     Caption = 'Guardar PNG (1200 px)'
