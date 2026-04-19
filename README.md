@@ -1,5 +1,12 @@
 # DelphiSkiaDemos
  Some examples created in delphi with Skia4Delphi
+ 
+ [![Skia_qrcod](Skia_Barcode/qr1.png)]
+ [![Skia_qrcod](Skia_Barcode/qr2.png)]
+ [![Skia_qrcod](Skia_Barcode/qr3.png)]
+ [![Skia_qrcod](Skia_Barcode/qr4.png)]
+
+Skia Qrcode generator thread
 
 [![Skia_Blur](SkiaNodeEditor/skianodes.png)]
 
