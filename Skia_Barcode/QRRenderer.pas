@@ -72,7 +72,7 @@ type
       const Style: TQRFinderStyle; BgColor: TAlphaColor;
       T: Single); static;
     class function ComputeReservedArea(QRRows: Integer; Scale,
-      LogoSizeFraction: Single): TQRReservedArea; static;
+      LogoSizeFraction: Single; LogoW, LogoH: Integer): TQRReservedArea; static;
     class procedure DrawLogoOnReserved(const ACanvas: ISkCanvas;
       const ALogoImage: ISkImage; const Reserved: TQRReservedArea;
       BgColor: TAlphaColor); static;
@@ -256,19 +256,23 @@ end;
 // ---------------------------------------------------------------------------
 
 class function TQRRenderer.ComputeReservedArea(QRRows: Integer; Scale,
-  LogoSizeFraction: Single): TQRReservedArea;
+  LogoSizeFraction: Single; LogoW, LogoH: Integer): TQRReservedArea;
 const
-  { Cap de segurança: mesmo com ECC nível H (~30%) o logo nunca deve
-    ocupar mais de ~25% da área total de módulos, senão o ECC não
-    consegue sempre reconstruir. Fracção 0.25 = 6.25% de área ≈ seguro. }
+  { Cap de segurança: LogoSizeFraction define a MAIOR dimensão da área
+    reservada. Mesmo com ECC nível H (~30% recuperável), limita-se a
+    30% do lado do QR — área reservada ≤ 30%×30% = 9% da matriz, muito
+    dentro do que o ECC consegue reconstruir. }
   MAX_SAFE_FRACTION = 0.30;
+  MIN_MODULES       = 5;   // evita retângulos demasiado finos em logos muito alongados
 var
-  SafeFraction:      Single;
-  DesiredPx:         Single;
-  DesiredModules:    Integer;
-  Span:              Integer;
-  CenterMod:         Integer;
-  Half:              Integer;
+  SafeFraction:       Single;
+  Aspect:             Single;
+  LongSidePx:         Single;
+  WPx, HPx:           Single;
+  ColsReserved:       Integer;
+  RowsReserved:       Integer;
+  CenterMod:          Integer;
+  HalfC, HalfR:       Integer;
 begin
   FillChar(Result, SizeOf(Result), 0);
   if (LogoSizeFraction <= 0) or (QRRows <= 0) then
@@ -279,32 +283,57 @@ begin
   if SafeFraction > MAX_SAFE_FRACTION then
     SafeFraction := MAX_SAFE_FRACTION;
 
-  // Tamanho desejado do logo em pixels (inclui margem de ~1 módulo de cada lado)
-  DesiredPx      := (QRRows * Scale) * SafeFraction;
-  DesiredModules := Ceil(DesiredPx / Scale) + 2;   // +1 módulo de padding de cada lado
+  // Rácio da imagem (larg/alt). Se não houver dimensões válidas, assume quadrado.
+  if (LogoW > 0) and (LogoH > 0) then
+    Aspect := LogoW / LogoH
+  else
+    Aspect := 1.0;
 
-  // Força número ímpar para centrar perfeitamente num módulo central
-  if (DesiredModules mod 2) = 0 then
-    Inc(DesiredModules);
+  // LogoSizeFraction aplica-se SEMPRE à maior dimensão — a outra encolhe
+  // proporcionalmente. Logos largos (16:9) devolvem altura ao QR; logos
+  // altos (9:16) devolvem largura ao QR.
+  LongSidePx := (QRRows * Scale) * SafeFraction;
+  if Aspect >= 1.0 then
+  begin
+    WPx := LongSidePx;
+    HPx := LongSidePx / Aspect;
+  end
+  else
+  begin
+    HPx := LongSidePx;
+    WPx := LongSidePx * Aspect;
+  end;
+
+  // Converte para número de módulos + 1 módulo de padding de cada lado
+  ColsReserved := Ceil(WPx / Scale) + 2;
+  RowsReserved := Ceil(HPx / Scale) + 2;
+
+  // Garante um mínimo útil — logos extremamente alongados ainda precisam
+  // de alguns módulos na dimensão curta para serem visíveis.
+  if ColsReserved < MIN_MODULES then ColsReserved := MIN_MODULES;
+  if RowsReserved < MIN_MODULES then RowsReserved := MIN_MODULES;
+
+  // Força número ímpar em ambos os eixos — centra perfeitamente no módulo central
+  if (ColsReserved mod 2) = 0 then Inc(ColsReserved);
+  if (RowsReserved mod 2) = 0 then Inc(RowsReserved);
 
   // QR matrices (com QZ=2) têm sempre número ímpar de linhas/colunas — o centro é um módulo
   CenterMod := QRRows div 2;
-  Half      := DesiredModules div 2;
-
-  Span := DesiredModules;
+  HalfC     := ColsReserved div 2;
+  HalfR     := RowsReserved div 2;
 
   Result.HasReserve := True;
-  Result.StartCol   := CenterMod - Half;
-  Result.EndCol     := CenterMod + Half;
-  Result.StartRow   := CenterMod - Half;
-  Result.EndRow     := CenterMod + Half;
+  Result.StartCol   := CenterMod - HalfC;
+  Result.EndCol     := CenterMod + HalfC;
+  Result.StartRow   := CenterMod - HalfR;
+  Result.EndRow     := CenterMod + HalfR;
 
   // Rectângulo em pixels — alinhado exactamente à grelha
   Result.RectPx := TRectF.Create(
     Result.StartCol * Scale,
     Result.StartRow * Scale,
-    (Result.StartCol + Span) * Scale,
-    (Result.StartRow + Span) * Scale);
+    (Result.StartCol + ColsReserved) * Scale,
+    (Result.StartRow + RowsReserved) * Scale);
 end;
 
 class procedure TQRRenderer.DrawLogoOnReserved(const ACanvas: ISkCanvas;
@@ -333,7 +362,7 @@ begin
   BgPaint.Style     := TSkPaintStyle.Fill;
   BgPaint.Color     := BgColor;
 
-  Radius := Reserved.RectPx.Width * 0.08;
+  Radius := Min(Reserved.RectPx.Width, Reserved.RectPx.Height) * 0.08;
   BgRadius := TPointF.Create(Radius, Radius);
   BgRR     := TSkRoundRect.Create;
   BgRadii[TSkRoundRectCorner.UpperLeft]  := BgRadius;
@@ -343,34 +372,37 @@ begin
   BgRR.SetRect(Reserved.RectPx, BgRadii);
   ACanvas.DrawRoundRect(BgRR, BgPaint);
 
-  // Caixa quadrada interior (com pequena margem visual relativa ao fundo)
-  Inset := Reserved.RectPx.Width * 0.10;
+  // Caixa interior com pequena margem visual — usa a dimensão MAIS CURTA
+  // para o inset, preservando ao máximo a forma da área reservada
+  // (que já foi calculada para bater certo com o aspecto do logo).
+  Inset := Min(Reserved.RectPx.Width, Reserved.RectPx.Height) * 0.10;
   LogoRect := TRectF.Create(
     Reserved.RectPx.Left   + Inset,
     Reserved.RectPx.Top    + Inset,
     Reserved.RectPx.Right  - Inset,
     Reserved.RectPx.Bottom - Inset);
 
-  // Preserva o rácio de aspecto do logo original (modo "fit" / letterbox).
-  // Assim imagens não-quadradas não ficam distorcidas — as faixas
-  // laterais são preenchidas pelo fundo da área reservada (BgColor).
+  // Ajuste fino de aspecto: a área reservada foi arredondada a um número
+  // inteiro de módulos, por isso o rácio pode ter pequeno desvio face ao
+  // logo original. Aplicamos um "fit" final para garantir 0 distorção —
+  // as bandas residuais são muito pequenas e pintadas em BgColor.
   if (ALogoImage.Width > 0) and (ALogoImage.Height > 0) then
   begin
     ImgAspect := ALogoImage.Width / ALogoImage.Height;
     BoxW      := LogoRect.Width;
     BoxH      := LogoRect.Height;
 
-    if ImgAspect >= 1.0 then
+    if (BoxW / BoxH) >= ImgAspect then
     begin
-      // Imagem mais larga do que alta — limitada pela largura
-      DrawW := BoxW;
-      DrawH := BoxW / ImgAspect;
+      // Caixa mais larga do que o logo — limita pela altura
+      DrawH := BoxH;
+      DrawW := BoxH * ImgAspect;
     end
     else
     begin
-      // Imagem mais alta do que larga — limitada pela altura
-      DrawH := BoxH;
-      DrawW := BoxH * ImgAspect;
+      // Caixa mais alta do que o logo — limita pela largura
+      DrawW := BoxW;
+      DrawH := BoxW / ImgAspect;
     end;
 
     CX := (LogoRect.Left + LogoRect.Right)  * 0.5;
@@ -423,7 +455,8 @@ begin
     // desta área NÃO são desenhados — o scanner vê uma zona limpa e o
     // ECC reconstrói os dados em falta.
     if Assigned(ALogoImage) and (LogoSizeFraction > 0) then
-      Reserved := ComputeReservedArea(QRCode.Rows, Scale, LogoSizeFraction)
+      Reserved := ComputeReservedArea(QRCode.Rows, Scale, LogoSizeFraction,
+        ALogoImage.Width, ALogoImage.Height)
     else
       FillChar(Reserved, SizeOf(Reserved), 0);
 
