@@ -4,7 +4,8 @@ uses
   Vcl.Forms,
   Unit1 in 'Unit1.pas' {Form1},
   QRBatchEngine in 'QRBatchEngine.pas',
-  QRRenderer in 'QRRenderer.pas';
+  QRRenderer in 'QRRenderer.pas',
+  QRVclUtils in 'QRVclUtils.pas';
 
 {$R *.res}
 

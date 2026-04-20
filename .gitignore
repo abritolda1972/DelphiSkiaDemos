@@ -1,5 +1,6 @@
 # Repositories
 __history/
+Skia_Barcode/ConsoleResult/
 
 # File types
 *.dproj.local
@@ -7,10 +8,14 @@ __history/
 *.identcache
 *.otares
 *.dcu
+*.o
+*.so
 
 # Specific files
 Skia_Barcode/QrCodesSkia.res
+Skia_Barcode/QrCodesSkiaConsole.res
 Skia_Barcode/QrCodesSkia.dproj
 Skia_Barcode/QrCodesSkia_Icon.ico
+Skia_Barcode/QrCodesSkiaConsole
 
 sk4d.dll

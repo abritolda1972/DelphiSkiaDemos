@@ -18,6 +18,7 @@ interface
 uses
   QRBatchEngine,
   QRRenderer,
+  QRVclUtils,
   System.Classes,
   System.IOUtils,
   System.Math,
