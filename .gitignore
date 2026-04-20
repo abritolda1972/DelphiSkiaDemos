@@ -1,0 +1,16 @@
+# Repositories
+__history/
+
+# File types
+*.dproj.local
+*.exe
+*.identcache
+*.otares
+*.dcu
+
+# Specific files
+Skia_Barcode/QrCodesSkia.res
+Skia_Barcode/QrCodesSkia.dproj
+Skia_Barcode/QrCodesSkia_Icon.ico
+
+sk4d.dll
