@@ -1,8 +1,17 @@
 ﻿unit QRRenderer;
 
 { ===========================================================================
-  QRRenderer — Renderização Skia isolada de qualquer controlo visual VCL.
-  Pode ser chamada tanto da main thread (PaintBox) como de worker threads.
+  QRRenderer — Renderização Skia 100% agnóstica de framework e plataforma.
+
+  Dependências: apenas System.* + System.Skia + DelphiZXingQRCode.
+  Zero referências a Vcl, Fmx, Winapi ou Posix — pode ser usado em:
+    · VCL (Windows)
+    · FireMonkey — Windows, macOS, iOS, Android, Linux
+    · Consolas / webservices headless em qualquer plataforma suportada
+      pelo Skia4Delphi.
+
+  Thread-safety: cada chamada cria a sua própria superfície Skia e a sua
+  própria matriz QR. Seguro para uso concorrente.
   =========================================================================== }
 
 interface
@@ -14,9 +23,7 @@ uses
   System.Skia,
   System.SysUtils,
   System.Types,
-  System.UITypes,
-  Vcl.Graphics,
-  Winapi.Windows;
+  System.UITypes;
 
 type
   TQRShape     = (qrsCircle, qrsSquare, qrsDiamond, qrsRoundRect, qrsHeart);
@@ -92,25 +99,11 @@ type
       const Logo: TQRLogoData; ExportSize: Integer = 1200): TBytes; static;
   end;
 
-{ Utilitários de cor — expostos para Unit1 não ter de redefini-los }
-function VclColorToAlpha(C: TColor): TAlphaColor;
-
 implementation
 
 // ---------------------------------------------------------------------------
 // Utilitários de cor
 // ---------------------------------------------------------------------------
-
-function VclColorToAlpha(C: TColor): TAlphaColor;
-var
-  CRGB: COLORREF;
-begin
-  CRGB   := ColorToRGB(C);
-  Result := $FF000000
-           or (TAlphaColor(GetRValue(CRGB)) shl 16)
-           or (TAlphaColor(GetGValue(CRGB)) shl  8)
-           or  TAlphaColor(GetBValue(CRGB));
-end;
 
 function LerpColor(C1, C2: TAlphaColor; T: Single): TAlphaColor;
 
