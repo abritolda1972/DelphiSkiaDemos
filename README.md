@@ -1,6 +1,10 @@
 # DelphiSkiaDemos
  Some examples created in delphi with Skia4Delphi
  
+ 
+ [![Skia_qrcod](Skia_Showcase/SkiaShowcase.png)]
+ Skia Showcase with Delphi and Skia4delphi
+ 
  [![Skia_qrcod](Skia_Barcode/qr1.png)]
  [![Skia_qrcod](Skia_Barcode/qr2.png)]
  [![Skia_qrcod](Skia_Barcode/qr3.png)]
